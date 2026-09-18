@@ -1,0 +1,326 @@
+"""Read-only, bounded local inventory and transcript normalization.
+No execution of skills; no uploads; no automatic calls to any model.
+Only explicitly scoped projects/roots. Unknown log formats stay unknown.
+"""
+from __future__ import annotations
+import argparse
+from datetime import datetime, timezone, timedelta
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+from typing import Any
+from runtime_io import write_json, file_digest
+
+SKIP_DIRS = {'.git','node_modules','.venv','venv','__pycache__','runs','reports'}
+# The whole-file cap that used to skip any transcript larger than this. It made the
+# scan silently drop 30 of 58 real logs. Transcripts are streamed line by line now;
+# the constant is kept only so the regression test can say "bigger than the old cap".
+LEGACY_PER_FILE_CAP = 3 * 1024 * 1024
+# Every limit below is a runaway guard, never a sampling knob. A cap that binds on
+# a normal machine ends up setting the headline instead of the setup doing it, which
+# is the bug that made a 30 session cap report 179 dormant and a 400 session cap 167.
+#
+# Codex writes single rows up to 27MB, and the old 4MB row limit dropped them. The
+# line is already in memory by the time this is checked (iterating a file yields the
+# whole line), so the limit only avoids the parse, not the allocation.
+MAX_LINE_BYTES = 64 * 1024 * 1024
+MAX_LOG_ROWS = 400000                   # per transcript
+# Measured on a heavily used machine: 9.3GB of transcripts, 302 sessions, 62s. The
+# old 4GB budget cut that to 101 sessions and moved the headline from 81 to 87
+# percent dormant while saving no time at all, because the wall clock is directory
+# walking, not reading. This is now high enough that it does not bind in practice.
+MAX_TOTAL_BYTES = 64 * 1024 * 1024 * 1024
+MAX_SCAN_FILES = 3000
+
+
+def bounded_files(root: Path, name: str, ceiling: int = MAX_SCAN_FILES):
+    """Do not follow symlinks or walk unbounded trees."""
+    if not root.is_dir() or root.is_symlink():
+        return
+    walked=0
+    for parent,dirs,files in os.walk(root, followlinks=False):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not (Path(parent)/d).is_symlink())
+        for item in sorted(files):
+            walked+=1
+            if walked > ceiling:
+                return
+            path=Path(parent)/item
+            if not path.is_symlink() and (item == name or (name=='*.jsonl' and item.endswith('.jsonl'))):
+                yield path
+
+
+def skill_header(text: str) -> dict[str,str]:
+    """Parse only simple name/description/version fields; no YAML execution."""
+    if not text.startswith('---'):
+        return {}
+    header=text.split('---',2)[1]
+    result={}
+    for key in ('name','description','version','edge-id','edge-version','edge-url'):
+        m=re.search(r'^\s*'+key+r':\s*([^\n]+)',header,re.M)
+        if m:result[key]=m.group(1).strip().strip('\"\'')[:1200]
+    return result
+
+
+def inventory(roots: list[Path]) -> dict[str,Any]:
+    result=[];warnings=[];seen=set()
+    for root in roots:
+        if not root.exists():
+            warnings.append(f'Skill root not found: {root}')
+            continue
+        for p in bounded_files(root,'SKILL.md'):
+            if len(result)>=300:
+                warnings.append('300-skill inventory limit reached')
+                break
+            if str(p.resolve()) in seen:continue
+            seen.add(str(p.resolve()))
+            if p.stat().st_size>262144:
+                warnings.append(f'Skipped oversized SKILL.md: {p}')
+                continue
+            text=p.read_text(encoding='utf-8',errors='replace')
+            h=skill_header(text)
+            result.append({'local_id':hashlib.sha256(str(p.resolve()).encode()).hexdigest()[:16],
+                'name':h.get('name',p.parent.name),'description':h.get('description',''),
+                'version':h.get('version'),'edge_id_claim':h.get('edge-id'),'edge_version_claim':h.get('edge-version'),'edge_url_claim':h.get('edge-url'),'path':str(p.resolve()),'skill_md_sha256':file_digest(p),
+                'fingerprint_scope':'SKILL.md only; selected bundles need full manifest at freeze time',
+                'full_content_loaded':False})
+    return {'skills':result,'warnings':warnings}
+
+
+def content_text(content: Any) -> str:
+    if isinstance(content,str):return content
+    if isinstance(content,list):
+        return '\n'.join(x.get('text','') for x in content if isinstance(x,dict) and x.get('type') in {'text','input_text','output_text'})
+    return ''
+
+
+def normalize(rows: list[dict[str,Any]], host: str, source: str) -> dict[str,Any]:
+    """Recognizes common Claude/Codex JSONL shapes; not a universal parser.
+    Calls mentioning skills are attempts. Only explicit matched successful
+    Skill-tool results become confirmed loads. File-read inference is omitted.
+    """
+    cwd=None; turns=[];attempts={};loads=[];failures=[];recognized=0
+    for i,row in enumerate(rows):
+        if not isinstance(row,dict):continue
+        if isinstance(row.get('cwd'),str):cwd=row['cwd']
+        payload=row.get('payload',{})
+        if row.get('type')=='session_meta' and isinstance(payload,dict):cwd=payload.get('cwd',cwd)
+        if host=='claude':
+            msg=row.get('message',{})
+            if not isinstance(msg,dict):continue
+            if row.get('type') not in {'user','assistant'}:continue
+            recognized+=1; content=msg.get('content',[])
+            text=content_text(content)
+            if text:
+                turns.append({'role':row['type'],'text':text[:3000],'event':i,'timestamp':row.get('timestamp'),'truncated':len(text)>3000})
+            if isinstance(content,list):
+                for part in content:
+                    if not isinstance(part,dict):continue
+                    if part.get('type')=='tool_use' and str(part.get('name','')).lower()=='skill':
+                        args=part.get('input',{})
+                        if isinstance(args,dict):attempts[part.get('id')]= {'name':str(args.get('skill',''))[:120], 'event':i}
+                    if part.get('type')=='tool_result' and part.get('tool_use_id') in attempts:
+                        attempt=attempts[part['tool_use_id']]
+                        # Success omits is_error entirely; only an explicit True is a
+                        # failure. Requiring `is False` scored every real load as a zero.
+                        # An attempt with no matched result stays in neither list: an
+                        # unfinished trace is not a failure.
+                        if part.get('is_error') is True:
+                            failures.append({**attempt,'confirmation_event':i,
+                                'evidence':'matched Skill-tool result flagged is_error'})
+                        else:
+                            loads.append({**attempt,'confirmation_event':i,
+                                'evidence':'matched Skill-tool result without an error flag'})
+        elif host=='codex':
+            if row.get('type')!='response_item' or not isinstance(payload,dict):continue
+            recognized+=1
+            if payload.get('type')=='message' and payload.get('role') in {'user','assistant'}:
+                text=content_text(payload.get('content',[]))
+                if text:turns.append({'role':payload['role'],'text':text[:3000],'event':i,'timestamp':row.get('timestamp'),'truncated':len(text)>3000})
+            if payload.get('type')=='function_call':
+                name=str(payload.get('name','')); args=payload.get('arguments','')
+                if 'skill' in name.lower() or 'SKILL.md' in str(args):
+                    attempts[str(payload.get('call_id',i))]={'name':name,'event':i,'arguments_excerpt':str(args)[:250]}
+    return {'source':source,'host':host,'cwd':cwd,'turns':turns,
+        'skill_attempts':list(attempts.values()),'confirmed_skill_loads':loads,
+        'failed_skill_loads':failures,
+        'invocation_coverage':'partial' if recognized else 'unrecognized',
+        'absence_is_not_zero':True,'recognized_events':recognized,
+        'grouping':'Host agent must group requests and corrections; these turns are not independent tasks.'}
+
+
+def encode_project(project: Path) -> str:
+    """Claude Code names a project's log directory after its path, with every
+    separator replaced by a dash."""
+    return str(project).replace('/','-')
+
+
+def default_skill_roots(project: Path, home: Path) -> list[Path]:
+    """Project-local skills first, then the user-level roots. Skills are usually
+    installed once for the whole machine, so a project-only inventory misses most
+    of them and makes the setup look far smaller than it is."""
+    return [project/'.agents/skills', project/'.claude/skills',
+            home/'.agents/skills', home/'.claude/skills']
+
+
+def default_log_roots(host: str, project: Path, home: Path, scope: str) -> tuple[list[Path],list[str]]:
+    """Where each host keeps its transcripts.
+
+    Scope matters for honesty, not just for recall. Skills are installed for the
+    whole machine, so 'never used' measured inside a single project would call a
+    skill dormant that the user leans on elsewhere. 'user' scope reads recent
+    sessions across projects; 'project' scope reads only this one and the report
+    has to say so.
+    """
+    found: list[Path] = []
+    notes: list[str] = []
+    claude_projects = home/'.claude'/'projects'
+    codex_sessions = home/'.codex'/'sessions'
+    if host in ('claude','auto') and claude_projects.is_dir():
+        if scope=='project':
+            exact = claude_projects/encode_project(project)
+            if exact.is_dir():
+                found.append(exact)
+            else:
+                notes.append(f'No Claude transcripts for this project yet: {exact}')
+        else:
+            found.extend(sorted(d for d in claude_projects.iterdir() if d.is_dir()))
+    if host in ('codex','auto') and codex_sessions.is_dir():
+        found.append(codex_sessions)
+    if not found:
+        notes.append('No agent transcript directory found. Looked for '
+                     f'{claude_projects} and {codex_sessions}.')
+    return found, notes
+
+
+def inspect(project: Path, host: str, roots: list[Path], logs: list[Path], days=90, max_sessions=500, explicit=False, scope='project') -> dict[str,Any]:
+    project=project.resolve();now=datetime.now(timezone.utc)
+    inv=inventory(roots);sessions=[];warnings=inv['warnings'];budget=0
+    cutoff=(now-timedelta(days=days)).timestamp()
+    candidates=[]
+    for root in logs:
+        if root.is_file() and not root.is_symlink():candidates.append(root)
+        elif root.is_dir():candidates.extend(bounded_files(root,'*.jsonl') or [])
+        else:warnings.append(f'Log path not found: {root}')
+    # A subagent transcript is a fragment of its parent session, not a session of
+    # its own: it has no user prompt and shares the parent's work. Counting each
+    # one as a session lets a single busy session crowd every other one out of the
+    # window. Its skill events still count, merged into the parent below.
+    candidates=sorted(set(candidates),key=lambda p:p.stat().st_mtime,reverse=True)
+    helpers:dict[str,list[Path]]={}
+    primaries=[]
+    for p in candidates:
+        if p.parent.name=='subagents':
+            helpers.setdefault(p.parent.parent.name,[]).append(p)
+        else:
+            primaries.append(p)
+    candidates=primaries
+    for path in candidates:
+        if len(sessions)>=max_sessions:break
+        if path.stat().st_mtime<cutoff:continue
+        if budget>=MAX_TOTAL_BYTES:
+            warnings.append('Total transcript read budget exhausted');break
+        # Stream line by line. Real transcripts run to tens of MB; refusing a whole
+        # file on size silently drops the sessions that matter most. A single row is
+        # bounded, the file is not.
+        rows=[];bad=0;oversized=0
+        with path.open('rb') as f:
+            for line in f:
+                budget+=len(line)
+                if len(line)>MAX_LINE_BYTES:
+                    oversized+=1;continue
+                if len(rows)>=MAX_LOG_ROWS:
+                    warnings.append(f'Row cap reached, log read is partial: {path}');bad+=1;break
+                try:rows.append(json.loads(line))
+                except json.JSONDecodeError:bad+=1
+        if oversized:
+            warnings.append(f'Skipped {oversized} oversized row(s), invocation trace may be incomplete: {path}')
+            bad+=oversized
+        detected=host
+        if detected=='auto':
+            detected='codex' if any(isinstance(r,dict) and r.get('type')=='session_meta' for r in rows[:20]) else 'claude'
+        item=normalize(rows,detected,str(path.resolve()))
+        if scope=='project' and item['cwd'] and Path(item['cwd']).resolve()!=project:continue
+        if not item['cwd'] and not explicit:
+            warnings.append(f'Unknown project; skipped log: {path}');continue
+        if any(marker in str(path) for marker in ('skill-forge/runs','brain-surgery/reports','brain-surgery/runs')):
+            continue
+        # Exclude explicit audit sessions, not arbitrary user conversations about skills.
+        first_user=next((t['text'] for t in item['turns'] if t['role']=='user'),'')
+        if first_user.lower().startswith(('run the installed brain surgery skill','/brain-surgery')):continue
+        item['parse_errors']=bad
+        if bad:item['invocation_coverage']='partial'
+        # Fold in this session's subagent transcripts: their skill loads are real
+        # loads, they just are not separate sessions.
+        merged=0
+        for helper in helpers.get(path.stem,[]):
+            rows=[]
+            with helper.open('rb') as f:
+                for line in f:
+                    budget+=len(line)
+                    if len(line)>MAX_LINE_BYTES or len(rows)>=MAX_LOG_ROWS:continue
+                    try:rows.append(json.loads(line))
+                    except json.JSONDecodeError:item['parse_errors']=item.get('parse_errors',0)+1
+            sub=normalize(rows,detected,str(helper.resolve()))
+            for key in ('skill_attempts','confirmed_skill_loads','failed_skill_loads'):
+                item[key]=item.get(key,[])+sub.get(key,[])
+            merged+=1
+        item['subagent_transcripts_merged']=merged
+        sessions.append(item)
+    # A skill the agent actually loaded but the inventory never saw means a skill root
+    # was missed. Report it; never let the inventory quietly contradict the transcripts.
+    known={s.get('name') for s in inv['skills'] if s.get('name')}
+    used={a['name'] for x in sessions for a in x['skill_attempts'] if a.get('name')}
+    unseen=sorted(n for n in used-known if n)
+    if unseen:
+        warnings.append('Loaded but not inventoried (a skill root is missing from --skill-root): '
+                        +', '.join(unseen))
+    # An empty scan is the one result that must never read as a clean bill of
+    # health. Say plainly that nothing was read, so it cannot be mistaken for
+    # "nothing is wrong".
+    if not sessions:
+        warnings.append('No transcripts were read, so nothing here is a measurement. '
+                        'This is not evidence that your setup is healthy.')
+    return {'schema_version':'brain-surgery-inspection/0.3','created_at':now.isoformat(),
+        'project':str(project),'host':host,'skills':inv['skills'],'sessions':sessions,
+        'inventory_gap':unseen,'scope':scope,
+        'limits':{'days':days,'max_sessions':max_sessions,'bytes_read':budget},
+        'warnings':warnings,'privacy':'LOCAL ONLY. Contains private excerpts. Never publish this file.',
+        'evaluation_performed':False}
+
+
+def main():
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--project',type=Path,required=True);p.add_argument('--host',choices=['auto','claude','codex'],default='auto')
+    p.add_argument('--skill-root',type=Path,action='append',default=[]);p.add_argument('--logs',type=Path,action='append',default=[])
+    p.add_argument('--days',type=int,default=90)
+    # Exhaustive by default: a cap that truncates the history makes the headline
+    # move with the cap instead of with the setup. A full pass is read-only and
+    # takes seconds, so there is no reason to sample.
+    p.add_argument('--max-sessions',type=int,default=500)
+    p.add_argument('--explicit-log-scope',action='store_true',help='Authorize supplied logs even without project metadata')
+    p.add_argument('--scope',choices=['project','user'],default='project',
+        help='project: only this project\'s sessions. user: recent sessions across all projects, '
+             'which is what "never used" needs since skills are installed machine-wide.')
+    p.add_argument('--out',type=Path,required=True)
+    a=p.parse_args()
+    if not a.project.is_dir():p.error('Project directory does not exist')
+    if not 1<=a.max_sessions<=2000 or not 1<=a.days<=365:p.error('Invalid scan limits')
+    home=Path.home()
+    roots=a.skill_root or default_skill_roots(a.project,home)
+    logs=a.logs; notes=[]
+    if not logs:
+        logs,notes=default_log_roots(a.host,a.project,home,a.scope)
+        # Discovered roots are the host's own directories, not a user-supplied path,
+        # so their sessions are in scope by construction.
+        a.explicit_log_scope=True
+    try:
+        result=inspect(a.project,a.host,roots,logs,a.days,a.max_sessions,a.explicit_log_scope,a.scope)
+        result['warnings']=notes+result['warnings']
+        result['log_roots']=[str(x) for x in logs]
+        write_json(a.out,result)
+    except (ValueError,OSError) as e:p.exit(2,f'Inspection failed: {e}\n')
+    print(json.dumps({'skills':len(result['skills']),'sessions':len(result['sessions']),
+        'warnings':len(result['warnings']),'scope':a.scope,'output':str(a.out),'uploaded':False}))
+if __name__=='__main__':main()

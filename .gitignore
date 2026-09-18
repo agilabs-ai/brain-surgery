@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+examples/generated/*
+# except the one scan the public landing page links to. Everything else under
+# generated/ is a render of the demo fixture, whose numbers are invented, so it
+# is build output and stays out. This one is a real measured run and the page
+# quotes its figures, so a reader has to be able to open the same file we did.
+!examples/generated/scan/
+eval/runs/
+*.local

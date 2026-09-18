@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Brain Surgery, by AGI Labs</title>
+<meta name="description" content="How much of your installed agent capability your agent actually reaches.">
+<link rel="icon" href="assets/brand/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png">
+<link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
+<meta property="og:title" content="Brain Surgery, by AGI Labs">
+<meta property="og:description" content="How much of your installed agent capability your agent actually reaches.">
+<meta property="og:image" content="assets/brand/og-agi-labs-1200x630.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root{--paper:#FFFFFF;--ink:#050505;--line:#E5E5E5;--blue:#154CFF;--muted:#6B6B6B;--r:9px;
+  --pad:max(24px,env(safe-area-inset-left,0px));
+  --quiet:var(--line);
+  --card:var(--ink);--card-ink:var(--paper);
+  --font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#0A0A0A;--ink:#F5F5F5;--line:#242424;--muted:#9A9A9A}}
+:root[data-theme="dark"]{--paper:#0A0A0A;--ink:#F5F5F5;--line:#242424;--muted:#9A9A9A}
+/* The unlit brain folds want more weight than a hairline. Mixed from the live tokens so
+   one rule covers both themes; --quiet falls back to --line where color-mix is missing,
+   which is faint but never leaves the folds strokeless. */
+@supports (color:color-mix(in srgb,#050505 28%,#FFFFFF)){:root{--quiet:color-mix(in srgb,var(--ink) 28%,var(--paper))}}
+*{box-sizing:border-box}html{background:var(--paper)}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 var(--font);-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}button{font:inherit}img{max-width:100%}.wrap{width:min(1120px,calc(100% - 2 * var(--pad)));margin:auto}
+.nav{height:68px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700;letter-spacing:-.45px}.brand>svg{width:27px;height:18px}.brand>strong{text-transform:lowercase}.product{font-size:12px;color:var(--muted)}
+.hero{min-height:calc(100vh - 118px);display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:76px;align-items:center;padding:64px 0 72px}h1{font-size:72px;line-height:.93;letter-spacing:-5px;font-weight:630;margin:0 0 32px;max-width:620px}
+.prompt{border:1px solid var(--card);border-radius:var(--r);background:var(--card);padding:14px 16px 14px;max-width:620px;transition:background .18s ease,border-color .18s ease,transform .18s ease}.prompt-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}.prompt-step{font-size:11px;letter-spacing:.01em;color:var(--card-ink);opacity:.62;transition:opacity .18s ease}.prompt p{margin:0;font-size:16px;line-height:1.52;letter-spacing:-.12px;color:var(--card-ink);max-width:540px}.prompt-actions{display:none;align-items:center;justify-content:space-between;gap:14px;margin-top:16px;padding-top:13px;border-top:1px solid color-mix(in srgb,var(--card-ink) 20%,transparent)}.next-step{display:none;margin:0;font-size:13px;line-height:1.35;color:var(--card-ink);font-weight:580}.copy{min-height:36px;padding:7px 13px;border:1px solid transparent;border-radius:var(--r);background:var(--card-ink);color:var(--card);font-weight:650;cursor:pointer;white-space:nowrap;transition:opacity .15s ease}.copy:hover{opacity:.85}.prompt.is-copied{--card:var(--blue);--card-ink:#FFFFFF;transform:translateY(-1px)}.prompt.is-copied .prompt-actions{display:flex}.prompt.is-copied .next-step{display:block}.prompt.is-copied p{opacity:.72}
+.compat-row{display:flex;align-items:center;justify-content:space-between;gap:14px;max-width:620px;margin-top:12px}.compat{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;min-width:0}.marks{display:flex;align-items:center;gap:8px}.mark{width:21px;height:21px;display:grid;place-items:center;flex:0 0 auto;color:var(--ink)}.mark svg{display:block;width:100%;height:100%;fill:currentColor}.mark .mk-bg{fill:var(--paper)}.mark .mk-mid{fill:var(--line)}.any{white-space:nowrap}.privacy{margin:0;font-size:11px;color:var(--muted);white-space:nowrap}
+.footer{border-top:1px solid var(--line);min-height:50px;display:flex;align-items:center;justify-content:space-between;gap:18px;color:var(--muted);font-size:12px}.footer-brand{display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:650}.footer-brand svg{width:18px;height:12px}.footer-links{display:flex;align-items:center;gap:18px}.footer a:hover{color:var(--ink)}
+.demo{align-self:center}.demo-label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 2px 8px;font-size:12px;color:var(--muted)}.demo-label strong{color:var(--blue);font-weight:600}.scan{display:block;border:1px solid var(--line);border-radius:var(--r);padding:22px 20px 18px;background:var(--paper)}.brain{width:100%;max-width:210px;margin:-2px auto 2px}.brain svg{display:block;width:100%;height:auto}
+.brain-svg .shell{fill:var(--paper);stroke:var(--quiet);stroke-width:2.5}.brain-svg .fill{fill:var(--blue);opacity:.10}.brain-svg .folds{fill:none;stroke:var(--quiet);stroke-width:2.35;stroke-linecap:round;stroke-linejoin:round}.brain-svg .lit{stroke:var(--blue);stroke-width:3.1}.brain-svg .level{fill:none;stroke:var(--blue);stroke-width:2}.brain-svg .rim{fill:none;stroke:var(--blue);stroke-width:3}
+.scores{display:flex;align-items:baseline;justify-content:center;gap:2px}.score{display:flex;align-items:baseline;gap:2px}.score b{font-size:52px;letter-spacing:-3px;font-weight:650;font-variant-numeric:tabular-nums}.score small{font-size:19px;font-weight:650;color:var(--muted)}
+.scan-note{text-align:center;margin:8px auto 0;max-width:290px;font-size:13px;line-height:1.4;color:var(--muted)}.scan-meta{text-align:center;margin:10px 0 0;font-size:12px;color:var(--muted)}.scan-foot{text-align:center;margin-top:5px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}.scan-link{text-align:center;margin:12px 0 0;font-size:13px}.scan-link a{color:var(--blue);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--blue) 35%,transparent);padding-bottom:1px}.scan-link a:hover{border-bottom-color:var(--blue)}
+@media(max-width:900px){.hero{grid-template-columns:1fr;gap:44px;min-height:auto;padding:54px 0 60px}.demo{max-width:500px}h1{font-size:62px}}
+@media(max-width:620px){:root{--pad:max(16px,env(safe-area-inset-left,0px))}.nav{height:62px}.product{font-size:11px}.hero{padding:40px 0 46px;gap:32px}h1{font-size:49px;letter-spacing:-3.3px;margin-bottom:26px}.prompt{padding:13px 13px 12px}.prompt p{font-size:14px}.prompt-head{margin-bottom:11px}.prompt-actions{margin-top:14px;padding-top:12px}.next-step{font-size:12px}.compat-row{align-items:flex-start;gap:8px}.compat{gap:7px;font-size:11px}.marks{gap:6px}.mark{width:19px;height:19px}.any{display:none}.copy{min-height:36px;padding:8px 12px}.privacy{font-size:10px;white-space:normal;text-align:right}.scan{padding:16px 12px 15px}.brain{max-width:186px}.scores .score b{font-size:44px}.footer{min-height:54px}.footer-links{gap:13px}}
+
+/* pixel-cloud hero
+   Ported from Paper Shaders (https://github.com/paper-design/shaders, Apache-2.0),
+   the dithering shader with shape=simplex. The mask does four jobs, and each one is a
+   fault an earlier render actually shipped: stay out of the nav band so the agi labs mark
+   and Brain Surgery stay readable, keep the headline column clear so the type never fights the
+   texture, thin out over the right column so the Example scan label survives, and fade
+   before the demo card rather than ending on a hard edge.
+
+   The hero is min-height 100vh with the content sitting high in it, so a cloud that
+   stops at the fold leaves a dead white band under the prompt card. The vertical mask
+   therefore runs most of the hero and only lets go at the very bottom. */
+html{overflow-x:clip}
+.hero{position:relative}
+.hero>*{position:relative;z-index:1}
+.hero-cloud{position:absolute;left:50%;top:0;transform:translateX(-50%);
+ width:100vw;height:min(100%,760px);z-index:0;pointer-events:none;
+ opacity:0;transition:opacity .7s ease;
+ --m-hole:radial-gradient(52% 42% at 30% 40%,#0000 0%,#0000 30%,#000 86%);
+ --m-vert:linear-gradient(#0000 0px,#000 112px,#000 55%,#0006 76%,#0000 99%);
+ --m-horz:linear-gradient(90deg,#000 0%,#000 44%,#0007 70%,#0000 97%);
+ -webkit-mask-image:var(--m-hole),var(--m-vert),var(--m-horz);
+ mask-image:var(--m-hole),var(--m-vert),var(--m-horz);
+ -webkit-mask-composite:source-in;mask-composite:intersect}
+.hero-cloud.is-on{opacity:.72}
+.hero-cloud canvas{display:block;width:100%;height:100%}
+/* The demo card sits on the texture, so it needs its own ground to stay crisp. */
+.demo .scan{background:var(--paper)}
+.demo .demo-label{position:relative}
+@media(max-width:900px){.hero-cloud{height:min(100%,520px);
+ --m-hole:radial-gradient(74% 40% at 50% 38%,#0000 0%,#0000 26%,#000 86%);
+ --m-vert:linear-gradient(#0000 0px,#000 76px,#000 62%,#0000 96%);
+ --m-horz:linear-gradient(90deg,#0000 0%,#000 12%,#000 88%,#0000 100%)}}
+@media(prefers-reduced-motion:reduce){.hero-cloud{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="nav">
+  <a class="brand" href="/" aria-label="AGI Labs home"><svg viewBox="0 0 100 66.6667" aria-hidden="true"><path d="M 0 50 A 50 50 0 0 1 100 50 L 100 66.6667 L 0 66.6667 Z" fill="currentColor"/></svg><strong>agi labs</strong></a>
+  <span class="product">Brain Surgery</span>
+</nav>
+<main class="hero">
+  <div class="hero-cloud" aria-hidden="true"></div>
+  <section class="intro">
+    <h1>Scan your AI’s brain.</h1>
+    <div class="prompt" id="prompt-card">
+      <div class="prompt-head">
+        <span class="prompt-step" id="prompt-step">1 · Copy this prompt</span>
+        <button class="copy" id="copy-prompt" type="button">Copy</button>
+      </div>
+      <p id="prompt-text">Install Brain Surgery from github.com/agilabs-ai/brain-surgery. Review the skill and its scripts first, then scan my recent work and installed skills. Show me what improves my results. Don’t change or upload anything without asking me.</p>
+      <div class="prompt-actions">
+        <p class="next-step" id="next-step">Paste it into your coding agent and hit send.</p>
+      </div>
+    </div>
+    <div class="compat-row">
+      <div class="compat" aria-label="Works with Claude Code, Codex, OpenCode, and any agent that runs Python locally">
+        <span id="compat-label">Works with</span>
+        <span class="marks" aria-hidden="true">
+            <span class="mark" title="Claude Code"><svg viewBox="0 0 125 125"><path d="M54.375 118.75L56.125 111L58.125 101L59.75 93L61.25 83.125L62.125 79.875L62 79.625L61.375 79.75L53.875 90L42.5 105.375L33.5 114.875L31.375 115.75L27.625 113.875L28 110.375L30.125 107.375L42.5 91.5L50 81.625L54.875 76L54.75 75.25H54.5L21.5 96.75L15.625 97.5L13 95.125L13.375 91.25L14.625 90L24.5 83.125L49.125 69.375L49.5 68.125L49.125 67.5H47.875L43.75 67.25L29.75 66.875L17.625 66.375L5.75 65.75L2.75 65.125L0 61.375L0.25 59.5L2.75 57.875L6.375 58.125L14.25 58.75L26.125 59.5L34.75 60L47.5 61.375H49.5L49.75 60.5L49.125 60L48.625 59.5L36.25 51.25L23 42.5L16 37.375L12.25 34.75L10.375 32.375L9.625 27.125L13 23.375L17.625 23.75L18.75 24L23.375 27.625L33.25 35.25L46.25 44.875L48.125 46.375L49 45.875V45.5L48.125 44.125L41.125 31.375L33.625 18.375L30.25 13L29.375 9.75C29.0417 8.625 28.875 7.375 28.875 6L32.75 0.750006L34.875 0L40.125 0.750006L42.25 2.625L45.5 10L50.625 21.625L58.75 37.375L61.125 42.125L62.375 46.375L62.875 47.75H63.75V47L64.375 38L65.625 27.125L66.875 13.125L67.25 9.125L69.25 4.375L73.125 1.87501L76.125 3.25L78.625 6.875L78.25 9.125L76.875 18.75L73.875 33.875L72 44.125H73.125L74.375 42.75L79.5 36L88.125 25.25L91.875 21L96.375 16.25L99.25 14H104.625L108.5 19.875L106.75 26L101.25 33L96.625 38.875L90 47.75L86 54.875L86.375 55.375H87.25L102.125 52.125L110.25 50.75L119.75 49.125L124.125 51.125L124.625 53.125L122.875 57.375L112.625 59.875L100.625 62.25L82.75 66.5L82.5 66.625L82.75 67L90.75 67.75L94.25 68H102.75L118.5 69.125L122.625 71.875L125 75.125L124.625 77.75L118.25 80.875L109.75 78.875L89.75 74.125L83 72.5H82V73L87.75 78.625L98.125 88L111.25 100.125L111.875 103.125L110.25 105.625L108.5 105.375L97 96.625L92.5 92.75L82.5 84.375H81.875V85.25L84.125 88.625L96.375 107L97 112.625L96.125 114.375L92.875 115.5L89.5 114.875L82.25 104.875L74.875 93.5L68.875 83.375L68.25 83.875L64.625 121.625L63 123.5L59.25 125L56.125 122.625L54.375 118.75Z"/></svg></span>
+            <span class="mark" title="Codex"><svg viewBox="0 0 100 100"><path d="M38.355 36.52v-9.415c0-.793.297-1.388.99-1.784l18.93-10.902c2.578-1.486 5.65-2.18 8.82-2.18 11.894 0 19.426 9.218 19.426 19.029 0 .694 0 1.486-.1 2.28L66.799 22.05c-1.189-.694-2.379-.694-3.568 0L38.355 36.52Zm44.202 36.67V50.694c0-1.388-.596-2.38-1.785-3.073L55.897 33.15l8.126-4.658c.694-.396 1.289-.396 1.982 0l18.93 10.902c5.452 3.172 9.118 9.91 9.118 16.452 0 7.531-4.46 14.47-11.496 17.344Zm-50.05-19.82-8.127-4.757c-.693-.396-.99-.99-.99-1.784V25.025c0-10.605 8.126-18.633 19.127-18.633 4.163 0 8.028 1.388 11.3 3.865l-19.525 11.3c-1.189.693-1.784 1.684-1.784 3.072v28.74ZM50 63.478l-11.645-6.541V43.062L50 36.522l11.645 6.54v13.875L50 63.477Zm7.483 30.129c-4.163 0-8.028-1.388-11.3-3.865l19.525-11.3c1.189-.693 1.784-1.684 1.784-3.071V46.629l8.226 4.757c.694.396.991.991.991 1.784v21.803c0 10.605-8.226 18.633-19.226 18.633v.001Zm-23.49-22.101-18.93-10.902c-5.45-3.172-9.117-9.91-9.117-16.451 0-7.632 4.559-14.47 11.595-17.344v22.596c0 1.388.595 2.379 1.784 3.072l24.777 14.37-8.126 4.659c-.694.396-1.289.396-1.982 0ZM32.905 87.76c-11.2 0-19.425-8.425-19.425-18.83 0-.794.1-1.587.198-2.38L33.2 77.85c1.189.693 2.379.693 3.568 0l24.876-14.37v9.415c0 .793-.298 1.388-.992 1.784L41.724 85.58c-2.576 1.486-5.649 2.18-8.82 2.18h.001Zm24.579 11.793c11.992 0 22.001-8.523 24.281-19.822C92.864 76.857 100 66.451 100 55.846c0-6.937-2.973-13.676-8.325-18.533.496-2.081.793-4.163.793-6.243 0-14.172-11.496-24.777-24.777-24.777-2.676 0-5.253.396-7.83 1.288C55.401 3.221 49.257.445 42.517.445c-11.992 0-22.001 8.523-24.281 19.822C7.136 23.14 0 33.547 0 44.152c0 6.938 2.973 13.676 8.325 18.533-.496 2.081-.793 4.163-.793 6.243 0 14.172 11.497 24.778 24.777 24.778 2.676 0 5.253-.397 7.83-1.289 4.459 4.36 10.604 7.136 17.344 7.136Z"/></svg></span>
+            <span class="mark" title="OpenCode"><svg viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22"/><rect class="mk-bg" x="7" y="7" width="10" height="10"/><rect class="mk-mid" x="7" y="12" width="10" height="5"/></svg></span>
+        </span>
+        <span class="any">+ any agent that runs Python locally</span>
+      </div>
+      <p class="privacy">No account · nothing sent unless you share</p>
+    </div>
+  </section>
+
+  <section class="demo" aria-label="Example Brain Surgery scan result">
+    <div class="demo-label"><span>Example scan</span><strong>191 skills installed</strong></div>
+    <div class="scan">
+      <div class="brain"><svg class="brain-svg" xmlns="http://www.w3.org/2000/svg" viewBox="8 40 230 346" fill="none" role="img" aria-label="A brain filled to the share of installed skills the agent reached: 37 of 191, over the scanned window.">
+<defs>
+  <clipPath id="landing-brain-shape"><path d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></clipPath>
+  <clipPath id="landing-brain-level"><rect x="20" y="316.524" width="195" height="65.476"/></clipPath>
+</defs>
+<path class="shell" d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/>
+<g clip-path="url(#landing-brain-shape)">
+  <rect class="fill" data-percent="19.37173" data-side="reached" x="20" y="316.524" width="195" height="65.476"/>
+  <g class="folds"><path d="M143 55 C161 58 169 71 164 87 C159 102 140 102 128 95"/><path d="M91 88 C101 106 103 119 90 130 C81 138 64 137 51 136"/><path d="M163 85 C184 91 190 109 180 125 C174 136 155 139 140 130 C130 124 121 127 117 138"/><path d="M111 79 C111 65 129 60 140 69"/><path d="M61 107 C76 101 82 111 78 118"/><path d="M45 196 C65 176 87 184 90 164 C92 154 83 146 74 149"/><path d="M93 129 C112 119 126 103 122 86"/><path d="M139 131 C148 150 143 173 129 179 C109 188 103 210 117 226 C127 239 149 239 158 230"/><path d="M185 110 C201 127 196 149 177 155 C159 162 160 185 173 196"/><path d="M64 167 C57 177 57 190 68 198 C90 216 72 230 56 223"/><path d="M43 221 C31 240 62 258 78 246 C92 236 100 247 101 260"/><path d="M177 155 C190 162 195 178 190 190"/><path d="M129 179 C146 182 153 196 146 210"/><path d="M89 208 C96 223 86 245 80 259 C73 278 88 291 101 285"/><path d="M119 226 C108 244 118 258 136 260 C153 264 158 280 149 293 C135 312 142 330 160 329"/><path d="M173 196 C155 212 166 231 183 234 C199 237 204 253 195 267 C183 284 166 286 169 307"/><path d="M59 260 C69 263 67 280 60 285"/><path d="M101 260 C114 273 116 294 102 305 C94 311 90 314 88 318"/><path d="M164 239 C151 236 143 244 146 253"/><path d="M169 307 C187 301 202 310 200 328 C198 349 179 354 166 348"/><path d="M106 334 C117 319 130 326 132 341 C134 356 153 364 166 348"/><path d="M131 365 C128 355 118 347 108 348"/><path d="M199 82 C185 71 186 60 181 50"/><path d="M183 279 C175 269 164 267 157 271"/><path d="M161 108 C155 113 153 121 156 128"/><path d="M124 196 C132 201 132 213 127 218"/><path d="M181 214 C190 212 200 216 207 224"/></g>
+  <g class="folds lit" clip-path="url(#landing-brain-level)"><path d="M143 55 C161 58 169 71 164 87 C159 102 140 102 128 95"/><path d="M91 88 C101 106 103 119 90 130 C81 138 64 137 51 136"/><path d="M163 85 C184 91 190 109 180 125 C174 136 155 139 140 130 C130 124 121 127 117 138"/><path d="M111 79 C111 65 129 60 140 69"/><path d="M61 107 C76 101 82 111 78 118"/><path d="M45 196 C65 176 87 184 90 164 C92 154 83 146 74 149"/><path d="M93 129 C112 119 126 103 122 86"/><path d="M139 131 C148 150 143 173 129 179 C109 188 103 210 117 226 C127 239 149 239 158 230"/><path d="M185 110 C201 127 196 149 177 155 C159 162 160 185 173 196"/><path d="M64 167 C57 177 57 190 68 198 C90 216 72 230 56 223"/><path d="M43 221 C31 240 62 258 78 246 C92 236 100 247 101 260"/><path d="M177 155 C190 162 195 178 190 190"/><path d="M129 179 C146 182 153 196 146 210"/><path d="M89 208 C96 223 86 245 80 259 C73 278 88 291 101 285"/><path d="M119 226 C108 244 118 258 136 260 C153 264 158 280 149 293 C135 312 142 330 160 329"/><path d="M173 196 C155 212 166 231 183 234 C199 237 204 253 195 267 C183 284 166 286 169 307"/><path d="M59 260 C69 263 67 280 60 285"/><path d="M101 260 C114 273 116 294 102 305 C94 311 90 314 88 318"/><path d="M164 239 C151 236 143 244 146 253"/><path d="M169 307 C187 301 202 310 200 328 C198 349 179 354 166 348"/><path d="M106 334 C117 319 130 326 132 341 C134 356 153 364 166 348"/><path d="M131 365 C128 355 118 347 108 348"/><path d="M199 82 C185 71 186 60 181 50"/><path d="M183 279 C175 269 164 267 157 271"/><path d="M161 108 C155 113 153 121 156 128"/><path d="M124 196 C132 201 132 213 127 218"/><path d="M181 214 C190 212 200 216 207 224"/><path d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></g>
+  <path class="level" d="M29 358.995H212"/>
+</g>
+<g clip-path="url(#landing-brain-level)"><path class="rim" d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></g>
+</svg></div>
+      <div class="scores"><span class="score"><b>81</b><small>%</small></span></div>
+      <p class="scan-note">of installed capability was never loaded in this window.</p>
+      <p class="scan-meta">37 reached · 3 failed to load · 5 shadowed by a name collision</p>
+      <div class="scan-foot">22,671 turns · 302 sessions · 30 days</div>
+      <p class="scan-link"><a href="example-scan.html">See the whole report</a></p>
+    </div>
+  </section>
+</main>
+<footer class="footer">
+  <div class="footer-brand"><svg viewBox="0 0 100 66.6667" aria-hidden="true"><path d="M 0 50 A 50 50 0 0 1 100 50 L 100 66.6667 L 0 66.6667 Z" fill="currentColor"/></svg><span>Brain Surgery · agi labs</span></div>
+  <div class="footer-links"><a href="https://github.com/agilabs-ai/brain-surgery">Source</a><a href="https://github.com/agilabs-ai/brain-surgery/blob/main/PRIVACY.md">Privacy</a></div>
+</footer>
+</div>
+<script>
+const copyButton=document.querySelector('#copy-prompt');
+const promptCard=document.querySelector('#prompt-card');
+const promptStep=document.querySelector('#prompt-step');
+const promptText=document.querySelector('#prompt-text');
+const compat=document.querySelector('.compat-row');
+const compatLabel=document.querySelector('#compat-label');
+
+function showCopiedState(){
+  promptCard.classList.add('is-copied');
+  promptStep.textContent='2 · Paste and send';
+  copyButton.textContent='Copied ✓';
+  compat.classList.add('after-copy');
+  compatLabel.textContent='Paste into';
+  compat.setAttribute('aria-label','Now paste the copied prompt into Claude Code, Codex, OpenCode, or any agent that runs Python locally');
+}
+
+copyButton.addEventListener('click',async()=>{
+  const text=promptText.textContent.trim();
+  try{
+    await navigator.clipboard.writeText(text);
+    showCopiedState();
+  }catch{
+    const r=document.createRange();
+    r.selectNodeContents(promptText);
+    const sel=window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+    promptStep.textContent='Copy the selected text';
+    copyButton.textContent='Selected';
+  }
+});
+</script>
+<script>
+/* Pixel cloud. Query params tune it live for review:
+   ?cloud=#154CFF &cloudbg=auto &cloudshape=simplex &cloudtype=4x4
+   &cloudsize=2 &cloudscale=.62 &cloudspeed=.18 */
+(function(){
+  var el=document.querySelector('.hero-cloud');
+  if(!el) return;
+  var q=new URLSearchParams(location.search);
+  function num(k,d){var v=parseFloat(q.get(k));return Number.isFinite(v)?v:d}
+  var still=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function paper(){
+    var c=getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();
+    return c||'#FFFFFF';
+  }
+  var handle=null;
+  function mount(){
+    if(handle){try{handle.dispose()}catch(e){} handle=null}
+    if(!el.isConnected||!window.EdgeCloud) return;
+    try{
+      handle=window.EdgeCloud.mount(el,{
+        colorFront:q.get('cloud')||'#154CFF',
+        colorBack:q.get('cloudbg')||paper(),
+        shape:q.get('cloudshape')||'simplex',
+        type:q.get('cloudtype')||'4x4',
+        size:num('cloudsize',2),
+        scale:num('cloudscale',.62),
+        speed:still?0:num('cloudspeed',.18),
+        frame:num('cloudframe',2600)
+      });
+      el.classList.add('is-on');
+    }catch(e){}
+  }
+  var s=document.createElement('script');
+  s.src='assets/edge-cloud.js';
+  s.onload=mount;
+  document.head.appendChild(s);
+  /* Re-mount on theme flip so the backdrop colour follows --paper. */
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  (mq.addEventListener?mq.addEventListener.bind(mq,'change'):mq.addListener.bind(mq))(function(){
+    if(window.EdgeCloud) mount();
+  });
+})();
+</script>
+</body>
+</html>

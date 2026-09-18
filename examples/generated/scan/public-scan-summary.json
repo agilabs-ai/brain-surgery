@@ -1,0 +1,23 @@
+{
+  "schema_version": "brain-surgery-scan-public/0.1",
+  "measured": true,
+  "installed": 191,
+  "reached": 37,
+  "dormant": 154,
+  "dormant_percent": 81,
+  "load_attempts": 147,
+  "confirmed_loads": 144,
+  "failed_loads": 3,
+  "sessions_analyzed": 302,
+  "turns_analyzed": 22671,
+  "window_days": 30,
+  "finding_counts": {
+    "load_failed": 2,
+    "shadowed": 5,
+    "inventory_gap": 8,
+    "dormant": 1
+  },
+  "evaluation_performed": false,
+  "change_status": "not_applied",
+  "scan_complete": true
+}

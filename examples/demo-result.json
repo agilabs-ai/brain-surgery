@@ -1,0 +1,119 @@
+{
+  "schema_version": "brain-surgery/0.4",
+  "example": true,
+  "metric_kind": "task_pass_rate",
+  "model_family": "Not shared",
+  "evaluator_type": "fixed_checks",
+  "skills_inspected": 18,
+  "candidate_bundle": "illustrative-bundle-02",
+  "finding_codes": [
+    "invocation",
+    "conflict",
+    "keep"
+  ],
+  "pairs": [
+    {
+      "task_id": "t01",
+      "workflow": "presentations",
+      "valid": true,
+      "before": false,
+      "after": true,
+      "title": "Private customer update deck",
+      "local_reference": "/private/work/customer-deck/notes.md",
+      "invocation": {
+        "eligible": true,
+        "before": false,
+        "after": true
+      }
+    },
+    {
+      "task_id": "t02",
+      "workflow": "presentations",
+      "valid": true,
+      "before": false,
+      "after": true,
+      "title": "Private product overview",
+      "local_reference": "/private/work/product-overview/brief.md",
+      "invocation": {
+        "eligible": true,
+        "before": false,
+        "after": true
+      }
+    },
+    {
+      "task_id": "t03",
+      "workflow": "writing",
+      "valid": true,
+      "before": true,
+      "after": true,
+      "title": "Private launch message",
+      "local_reference": "private-writing-skill-A",
+      "invocation": {
+        "eligible": true,
+        "before": true,
+        "after": true
+      }
+    },
+    {
+      "task_id": "t04",
+      "workflow": "writing",
+      "valid": true,
+      "before": false,
+      "after": true,
+      "title": "Private partner reply",
+      "local_reference": "/private/work/partner-reply/notes.md",
+      "invocation": {
+        "eligible": true,
+        "before": false,
+        "after": true
+      }
+    },
+    {
+      "task_id": "t05",
+      "workflow": "coding",
+      "valid": true,
+      "before": true,
+      "after": true,
+      "title": "Private feature implementation",
+      "local_reference": "/private/work/feature/acceptance.md",
+      "invocation": {
+        "eligible": false,
+        "before": null,
+        "after": null
+      }
+    },
+    {
+      "task_id": "t06",
+      "workflow": "coding",
+      "valid": true,
+      "before": false,
+      "after": false,
+      "title": "Private regression repair",
+      "local_reference": "/private/work/bug/reproduction.md",
+      "invocation": {
+        "eligible": false,
+        "before": null,
+        "after": null
+      }
+    }
+  ],
+  "plan": {
+    "status": "draft_not_applied",
+    "candidate_bundle": "illustrative-bundle-02",
+    "base_configuration_fingerprint": "DEMO_NOT_A_REAL_FINGERPRINT",
+    "changes": [
+      {
+        "title": "Make presentation-skill routing explicit.",
+        "description": "Illustrative proposal. Add one scoped activation rule rather than a new router.",
+        "patch_preview": "For creating or redesigning a PowerPoint, load the selected presentation skill before drafting. Do not load it for a plain-text outline."
+      },
+      {
+        "title": "Archive the conflicting writing instruction.",
+        "description": "Keep the selected writing method. Archive the redundant conflicting instruction rather than permanently deleting it.",
+        "patch_preview": "Archive the candidate-marked duplicate instruction. Preserve a restorable original and verify the configuration has not changed."
+      }
+    ],
+    "apply_requires": "explicit approval, original-hash check, exact diff, rollback backup",
+    "not_a_shell_script": true
+  }
+}
