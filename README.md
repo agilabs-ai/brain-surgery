@@ -37,6 +37,15 @@ is designed to be inspected.
 See [SECURITY.md](SECURITY.md) and [PRIVACY.md](PRIVACY.md) for exactly what it reads, what it
 writes, and what does (and does not) leave your machine.
 
+## How it measures
+
+Brain Surgery is an experiment, not a benchmark: same tasks and same model on both arms, so
+the only variable is your setup. [METHOD.md](METHOD.md) is the full methodology, why it reads
+your own work instead of a benchmark, how the two arms are held fixed, randomized arm ordering
+and fixed-check grading, why invocation is measured separately from quality, and the honesty
+properties every report holds. The machine-checkable contracts are in
+[`references/`](references/).
+
 ## Render a report from a result
 
 ```bash
@@ -54,6 +63,7 @@ measurement of your setup.
 
 ```
 SKILL.md        skill entry point
+METHOD.md        the measurement methodology
 references/      result contract, runtime, adapter, design system
 scripts/         the working code, standard library only
 adapters/        fixture adapter
