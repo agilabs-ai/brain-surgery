@@ -476,3 +476,24 @@ def test_a_finding_without_a_fix_renders_without_an_empty_box(scan, out):
     }]
     _, _, local, _ = rendered(scan, out)
     assert 'class="fix"' not in local
+
+
+def test_a_clean_page_does_not_contradict_its_own_error_count(scan, out):
+    """The hero said "no failed loads" while the strip beneath it counted four.
+    Both were true, since those failures had been fixed, and saying only one of
+    them made the page read as a mistake."""
+    scan["findings"] = []
+    scan["resolved_since"] = ["gmail-operations", "agentwallet-credential-ops"]
+    scan["totals"]["failed_loads"] = 4
+    _, _, local, _ = rendered(scan, out)
+    assert "no failed loads" not in local
+    assert "failed in earlier sessions and load now" in local
+    assert "since resolved" in local
+
+
+def test_a_genuinely_clean_page_still_says_so_plainly(scan, out):
+    scan["findings"] = []
+    scan["resolved_since"] = []
+    scan["totals"]["failed_loads"] = 0
+    _, _, local, _ = rendered(scan, out)
+    assert "No name collisions, no failed loads" in local
