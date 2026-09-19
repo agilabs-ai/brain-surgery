@@ -1,0 +1,258 @@
+{
+ "case": "csv-rollup",
+ "kind": "integration-fixture",
+ "runs": [
+  {
+   "harness": "claude",
+   "arm": "baseline",
+   "workspace": "/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-23n86qva",
+   "adapter": {
+    "protocol": "brain-surgery-adapter/0.3",
+    "model": "claude-sonnet-5",
+    "status": "ok",
+    "usage": {
+     "total_tokens": 130155,
+     "raw": {
+      "input_tokens": 8,
+      "cache_creation_input_tokens": 34074,
+      "cache_read_input_tokens": 95266,
+      "output_tokens": 807,
+      "output_tokens_details": {
+       "thinking_tokens": 22
+      },
+      "server_tool_use": {
+       "web_search_requests": 0,
+       "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 34074,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [],
+      "speed": "standard"
+     }
+    },
+    "invocation": {
+     "complete": true,
+     "target_loaded": null
+    },
+    "seconds": 44.1,
+    "harness": "claude",
+    "returncode": 0
+   },
+   "stderr_tail": null,
+   "score": {
+    "contract": "brain-surgery-scoring/0.1",
+    "scorable": true,
+    "task_passed": true,
+    "unscorable_reason": null,
+    "checks": {
+     "outcome": {
+      "passed": 5,
+      "total": 5
+     },
+     "indicator": {
+      "passed": 0,
+      "total": 1
+     },
+     "unclassified": {
+      "passed": 0,
+      "total": 0
+     }
+    },
+    "invocation": {
+     "fired": false,
+     "checked": 1
+    }
+   }
+  },
+  {
+   "harness": "claude",
+   "arm": "candidate",
+   "workspace": "/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-vk0xvprq",
+   "adapter": {
+    "protocol": "brain-surgery-adapter/0.3",
+    "model": "claude-sonnet-5",
+    "status": "ok",
+    "usage": {
+     "total_tokens": 132352,
+     "raw": {
+      "input_tokens": 8,
+      "cache_creation_input_tokens": 24667,
+      "cache_read_input_tokens": 106813,
+      "output_tokens": 864,
+      "output_tokens_details": {
+       "thinking_tokens": 142
+      },
+      "server_tool_use": {
+       "web_search_requests": 0,
+       "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+       "ephemeral_1h_input_tokens": 24667,
+       "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [],
+      "speed": "standard"
+     }
+    },
+    "invocation": {
+     "complete": true,
+     "target_loaded": true
+    },
+    "seconds": 38.1,
+    "harness": "claude",
+    "returncode": 0
+   },
+   "stderr_tail": null,
+   "score": {
+    "contract": "brain-surgery-scoring/0.1",
+    "scorable": true,
+    "task_passed": true,
+    "unscorable_reason": null,
+    "checks": {
+     "outcome": {
+      "passed": 5,
+      "total": 5
+     },
+     "indicator": {
+      "passed": 1,
+      "total": 1
+     },
+     "unclassified": {
+      "passed": 0,
+      "total": 0
+     }
+    },
+    "invocation": {
+     "fired": true,
+     "checked": 1
+    }
+   }
+  },
+  {
+   "harness": "codex",
+   "arm": "baseline",
+   "workspace": "/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-iboej5tq",
+   "adapter": {
+    "protocol": "brain-surgery-adapter/0.3",
+    "model": "gpt-5.2-codex",
+    "status": "ok",
+    "usage": {
+     "total_tokens": null
+    },
+    "invocation": {
+     "complete": true,
+     "target_loaded": null
+    },
+    "seconds": 27.3,
+    "harness": "codex",
+    "returncode": 1
+   },
+   "stderr_tail": "s context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\nhook: SessionStart\nhook: SessionStart\nhook: SessionStart Completed\nhook: SessionStart Completed\nhook: UserPromptSubmit\nhook: UserPromptSubmit Completed\nERROR: You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 19th, 2026 6:11 AM.\nERROR: You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 19th, 2026 6:11 AM.\n",
+   "score": {
+    "contract": "brain-surgery-scoring/0.1",
+    "scorable": true,
+    "task_passed": false,
+    "unscorable_reason": null,
+    "checks": {
+     "outcome": {
+      "passed": 1,
+      "total": 5
+     },
+     "indicator": {
+      "passed": 0,
+      "total": 1
+     },
+     "unclassified": {
+      "passed": 0,
+      "total": 0
+     }
+    },
+    "invocation": {
+     "fired": false,
+     "checked": 1
+    }
+   }
+  },
+  {
+   "harness": "codex",
+   "arm": "candidate",
+   "workspace": "/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-asefg1lu",
+   "adapter": {
+    "protocol": "brain-surgery-adapter/0.3",
+    "model": "gpt-5.2-codex",
+    "status": "ok",
+    "usage": {
+     "total_tokens": null
+    },
+    "invocation": {
+     "complete": true,
+     "target_loaded": false
+    },
+    "seconds": 13.0,
+    "harness": "codex",
+    "returncode": 1
+   },
+   "stderr_tail": "s context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\nhook: SessionStart\nhook: SessionStart\nhook: SessionStart Completed\nhook: SessionStart Completed\nhook: UserPromptSubmit\nhook: UserPromptSubmit Completed\nERROR: You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 19th, 2026 6:11 AM.\nERROR: You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 19th, 2026 6:11 AM.\n",
+   "score": {
+    "contract": "brain-surgery-scoring/0.1",
+    "scorable": true,
+    "task_passed": false,
+    "unscorable_reason": null,
+    "checks": {
+     "outcome": {
+      "passed": 1,
+      "total": 5
+     },
+     "indicator": {
+      "passed": 0,
+      "total": 1
+     },
+     "unclassified": {
+      "passed": 0,
+      "total": 0
+     }
+    },
+    "invocation": {
+     "fired": false,
+     "checked": 1
+    }
+   }
+  }
+ ],
+ "summary": {
+  "claude": {
+   "baseline": {
+    "contract": "brain-surgery-scoring/0.1",
+    "tasks": 1,
+    "scored_tasks": 1,
+    "pass_rate": 100.0
+   },
+   "candidate": {
+    "contract": "brain-surgery-scoring/0.1",
+    "tasks": 1,
+    "scored_tasks": 1,
+    "pass_rate": 100.0
+   }
+  },
+  "codex": {
+   "baseline": {
+    "contract": "brain-surgery-scoring/0.1",
+    "tasks": 1,
+    "scored_tasks": 1,
+    "pass_rate": 0.0
+   },
+   "candidate": {
+    "contract": "brain-surgery-scoring/0.1",
+    "tasks": 1,
+    "scored_tasks": 1,
+    "pass_rate": 0.0
+   }
+  }
+ }
+}

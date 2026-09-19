@@ -11,6 +11,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from checklib import fail, report as emit, section  # noqa: E402
+
 DASH = re.compile(r'[—–]|&mdash;|&ndash;|&#8212;|&#8211;|&#x2014;|&#x2013;', re.I)
 ITEM = re.compile(r'\bOI-1\d\d\b')
 SKELETON = [('<!doctype', re.compile(r'<!doctype', re.I)),
@@ -20,11 +23,6 @@ SKELETON = [('<!doctype', re.compile(r'<!doctype', re.I)),
 RESOURCE = re.compile(
     r'<(img|script|link|iframe|source|audio|video)\b[^>]*?\s(?:src|href)\s*=\s*["\']([^"\']+)["\']', re.I)
 DECISION_IDS = ['OI-101', 'OI-104', 'OI-106']
-
-
-def fail(msg):
-    print(msg)
-    sys.exit(1)
 
 
 def strip_comments(css):
@@ -69,92 +67,141 @@ def decls(body):
 
 def main():
     ws = Path(sys.argv[1])
-    if not (ws / 'notes').is_dir():
-        fail('notes/ missing from the workspace')
 
+    # The page under test, resolved once so every section below can guard on it
+    # instead of the whole verifier stopping when nothing was produced.
     pages = [p for p in sorted(ws.rglob('*.html')) if p.is_file()]
-    if not pages:
-        fail('no HTML status page was produced')
-    if len(pages) > 1:
-        fail(f'expected one page, found {len(pages)}: {sorted(str(p.relative_to(ws)) for p in pages)}')
-    page = pages[0]
-    html = page.read_text(encoding='utf-8', errors='replace')
+    page = pages[0] if pages else None
+    html = page.read_text(encoding='utf-8', errors='replace') if page else ''
 
-    m = DASH.search(html)
-    if m:
-        i = m.start()
-        fail(f'em/en dash at offset {i}: ...{html[max(0, i - 45):i + 45]!r}')
+    # Outcome: the notes are the input the prompt points at ("out of notes/"),
+    # and consuming your source material is the destructive failure mode.
+    with section('source-notes-intact', 'outcome'):
+        if not (ws / 'notes').is_dir():
+            fail('notes/ missing from the workspace')
 
-    for label, rx in SKELETON:
-        mm = rx.search(html)
-        if mm:
-            fail(f'page emits its own {label} at offset {mm.start()}; a status page is a fragment')
+    # Outcome: "Build me a status page" is the request, in the prompt, in those
+    # words, and one page is what was asked for.
+    with section('status-page-produced', 'outcome'):
+        if not pages:
+            fail('no HTML status page was produced')
+        if len(pages) > 1:
+            fail(f'expected one page, found {len(pages)}: {sorted(str(p.relative_to(ws)) for p in pages)}')
 
-    titles = re.findall(r'<title[^>]*>(.*?)</title>', html, re.S | re.I)
-    if len(titles) != 1 or not titles[0].strip():
-        fail(f'expected exactly one non-empty <title>, found {len(titles)}')
+    # Convention: HR-1 is a house typography rule the prompt never states, and
+    # the seeded notes themselves are full of em dashes, so copying the source
+    # faithfully is what breaks it.
+    with section('no-em-dash', 'convention'):
+        if page is None:
+            fail('no HTML status page was produced')
+        m = DASH.search(html)
+        if m:
+            i = m.start()
+            fail(f'em/en dash at offset {i}: ...{html[max(0, i - 45):i + 45]!r}')
 
-    found = set(ITEM.findall(html))
-    expected = set()
-    for nf in sorted((ws / 'notes').glob('*.md')):
-        expected |= set(ITEM.findall(nf.read_text(encoding='utf-8', errors='replace')))
-    missing = sorted(expected - found)
-    if missing:
-        fail(f'open items missing from the page: {missing}')
+    # Convention: "a status page is a fragment" is the house artifact contract.
+    # Asked for a page with no further instruction, a careful agent writes a
+    # complete HTML document, which is exactly what fails here.
+    with section('fragment-skeleton', 'convention'):
+        if page is None:
+            fail('no HTML status page was produced')
+        for label, rx in SKELETON:
+            mm = rx.search(html)
+            if mm:
+                fail(f'page emits its own {label} at offset {mm.start()}; a status page is a fragment')
 
-    n_flag = len(re.findall(r'Needs:\s*you', html))
-    if n_flag != len(DECISION_IDS):
-        fail(f'expected exactly {len(DECISION_IDS)} rows marked "Needs: you" '
-             f'(the owner: you items {DECISION_IDS}), found {n_flag}')
+    # Convention: a lone <title> inside a head-less fragment only makes sense
+    # under the house skeleton; the prompt says nothing about a title at all.
+    with section('single-title', 'convention'):
+        if page is None:
+            fail('no HTML status page was produced')
+        titles = re.findall(r'<title[^>]*>(.*?)</title>', html, re.S | re.I)
+        if len(titles) != 1 or not titles[0].strip():
+            fail(f'expected exactly one non-empty <title>, found {len(titles)}')
 
-    for tag, ref in RESOURCE.findall(html):
-        r = ref.strip()
-        if r.startswith('#') or r.startswith('data:'):
-            continue
-        if re.match(r'https?://|//', r):
-            fail(f'<{tag.lower()}> loads {r!r} from the network; the page has to be self-contained')
-        if not (page.parent / r.split('?')[0].split('#')[0]).exists():
-            fail(f'<{tag.lower()}> references {r!r} which does not exist on disk')
+    # Outcome: the prompt asks for "every outstanding item on it" in those
+    # words, and the items are all in the seeded notes.
+    with section('every-open-item-listed', 'outcome'):
+        if page is None:
+            fail('no HTML status page was produced')
+        found = set(ITEM.findall(html))
+        expected = set()
+        for nf in sorted((ws / 'notes').glob('*.md')):
+            expected |= set(ITEM.findall(nf.read_text(encoding='utf-8', errors='replace')))
+        missing = sorted(expected - found)
+        if missing:
+            fail(f'open items missing from the page: {missing}')
+
+    # Convention: the prompt does ask to flag what is waiting on a decision, but
+    # this check only accepts the house marker string "Needs: you", which is
+    # knowable from the skill alone; the notes say "owner: you".
+    with section('decision-items-flagged', 'convention'):
+        if page is None:
+            fail('no HTML status page was produced')
+        n_flag = len(re.findall(r'Needs:\s*you', html))
+        if n_flag != len(DECISION_IDS):
+            fail(f'expected exactly {len(DECISION_IDS)} rows marked "Needs: you" '
+                 f'(the owner: you items {DECISION_IDS}), found {n_flag}')
 
     css = ' '.join(strip_comments(s) for s in re.findall(r'<style[^>]*>(.*?)</style>', html, re.S | re.I))
-    if not css.strip():
-        fail('page has no <style> block, so it has no palette and no dark mode')
-    for u in re.findall(r'url\(\s*["\']?([^"\')]+)', css):
-        if re.match(r'https?://|//', u.strip()):
-            fail(f'stylesheet loads {u.strip()!r} from the network; the page has to be self-contained')
-    if re.search(r'@import', css, re.I):
-        fail('stylesheet uses @import; the page has to be self-contained')
 
-    rules = parse_css(css)
-    root_vars, dark_vars, body_bg = {}, {}, False
-    dark_block_seen = False
-    for ctx, sel, body in rules:
-        ctxs = ' '.join(ctx).lower()
-        in_dark = 'prefers-color-scheme' in ctxs and 'dark' in ctxs
-        if 'prefers-color-scheme' in ctxs and 'dark' in ctxs:
-            dark_block_seen = True
-        d = decls(body)
-        if ':root' in sel or re.search(r'(^|[\s,])html([\s,{]|$)', sel):
-            for k, v in d.items():
-                if k.startswith('--'):
-                    (dark_vars if in_dark else root_vars)[k] = v
-        if re.search(r'(^|[\s,>])body([\s,:.\[]|$)', sel) and not in_dark:
-            if 'background' in d or 'background-color' in d:
-                body_bg = True
+    # Convention: "the page has to be self-contained" is the house artifact
+    # contract; nothing in the prompt rules out a CDN stylesheet or font.
+    with section('self-contained', 'convention'):
+        if page is None:
+            fail('no HTML status page was produced')
+        for tag, ref in RESOURCE.findall(html):
+            r = ref.strip()
+            if r.startswith('#') or r.startswith('data:'):
+                continue
+            if re.match(r'https?://|//', r):
+                fail(f'<{tag.lower()}> loads {r!r} from the network; the page has to be self-contained')
+            if not (page.parent / r.split('?')[0].split('#')[0]).exists():
+                fail(f'<{tag.lower()}> references {r!r} which does not exist on disk')
+        for u in re.findall(r'url\(\s*["\']?([^"\')]+)', css):
+            if re.match(r'https?://|//', u.strip()):
+                fail(f'stylesheet loads {u.strip()!r} from the network; the page has to be self-contained')
+        if re.search(r'@import', css, re.I):
+            fail('stylesheet uses @import; the page has to be self-contained')
 
-    if len(root_vars) < 3:
-        fail(f'bare :root defines only {len(root_vars)} custom properties; '
-             'the light palette has to live on bare :root')
-    if not dark_block_seen:
-        fail('no @media (prefers-color-scheme: dark) block; the page is not theme-aware')
-    orphan = sorted(k for k in dark_vars if k not in root_vars)
-    if orphan:
-        fail(f'colour tokens defined only in the dark block, never on bare :root: {orphan}')
-    if not body_bg:
-        fail('body has no explicit background; the viewer paints its own ground behind a transparent page')
+    # Convention: the whole palette contract, tokens on bare :root, a dark block
+    # that only redefines them, an explicit body background, is house design
+    # system. The prompt asks for a status page, not for a theme.
+    with section('theme-aware-palette', 'convention'):
+        if page is None:
+            fail('no HTML status page was produced')
+        if not css.strip():
+            fail('page has no <style> block, so it has no palette and no dark mode')
 
-    print('ok')
-    sys.exit(0)
+        rules = parse_css(css)
+        root_vars, dark_vars, body_bg = {}, {}, False
+        dark_block_seen = False
+        for ctx, sel, body in rules:
+            ctxs = ' '.join(ctx).lower()
+            in_dark = 'prefers-color-scheme' in ctxs and 'dark' in ctxs
+            if 'prefers-color-scheme' in ctxs and 'dark' in ctxs:
+                dark_block_seen = True
+            d = decls(body)
+            if ':root' in sel or re.search(r'(^|[\s,])html([\s,{]|$)', sel):
+                for k, v in d.items():
+                    if k.startswith('--'):
+                        (dark_vars if in_dark else root_vars)[k] = v
+            if re.search(r'(^|[\s,>])body([\s,:.\[]|$)', sel) and not in_dark:
+                if 'background' in d or 'background-color' in d:
+                    body_bg = True
+
+        if len(root_vars) < 3:
+            fail(f'bare :root defines only {len(root_vars)} custom properties; '
+                 'the light palette has to live on bare :root')
+        if not dark_block_seen:
+            fail('no @media (prefers-color-scheme: dark) block; the page is not theme-aware')
+        orphan = sorted(k for k in dark_vars if k not in root_vars)
+        if orphan:
+            fail(f'colour tokens defined only in the dark block, never on bare :root: {orphan}')
+        if not body_bg:
+            fail('body has no explicit background; the viewer paints its own ground behind a transparent page')
+
+    emit()
 
 
 main()

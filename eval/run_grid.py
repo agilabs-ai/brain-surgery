@@ -204,7 +204,7 @@ def run_once(task, arm_key, models, trial, out_dir: Path, timeout: int):
         (run_dir / 'stderr.txt').write_text(stderr)
 
     skill_loaded = detect_skill_load(stdout, task['skill'])
-    passed, detail = run_check(task, ws, timeout=120)
+    passed, detail, checks = run_check(task, ws, timeout=120)
     infra_reason = detect_infra_error(stdout, stderr, rc, timed_out)
 
     record = {
@@ -212,6 +212,12 @@ def run_once(task, arm_key, models, trial, out_dir: Path, timeout: int):
         'model': model, 'skill_available': arm['skill'], 'skill': task['skill'],
         'workflow': task.get('workflow'),
         'passed': bool(passed), 'check_detail': detail,
+        # Per-check results, split into the job the prompt asked for and the
+        # house convention it withheld. Absent for a task whose verifier has not
+        # been migrated, so a consumer has to handle None rather than read a
+        # missing breakdown as a breakdown of zero.
+        'checks': (checks or {}).get('checks'),
+        'check_totals': (checks or {}).get('totals'),
         'skill_loaded': skill_loaded,
         # A run that crashed, ran out of wall clock, or never reached the model
         # is infrastructure, not a task failure. It is recorded and then
@@ -316,16 +322,55 @@ def detect_skill_load(stream_json: str, skill: str):
     return False if seen_any else None
 
 
+def parse_checks(stdout: str):
+    """The per-check JSON a migrated verifier prints on its first line.
+
+    Returns None for a verifier that has not been migrated yet, which is not an
+    error: the corpus converts a task at a time and an unmigrated task still
+    scores exactly as it always did through the exit code.
+
+    Only the first line is parsed. Everything after it is the human-readable
+    failure list, which is there for somebody reading a terminal and must never
+    be able to turn into a scoring input.
+    """
+    head = (stdout or '').lstrip().split('\n', 1)[0]
+    if not head.startswith('{'):
+        return None
+    try:
+        data = json.loads(head)
+    except ValueError:
+        return None
+    if not str(data.get('schema', '')).startswith('brain-surgery-checks/'):
+        return None
+    checks = data.get('checks')
+    if not isinstance(checks, list) or not checks:
+        return None
+    return data
+
+
 def run_check(task, ws: Path, timeout: int):
-    """Deterministic verifier. It sees the workspace, never the arm."""
+    """Deterministic verifier. It sees the workspace, never the arm.
+
+    Returns (passed, detail, checks). `passed` keeps its original meaning, every
+    check green, so the headline a reader already knows how to interpret does
+    not silently change definition underneath them. `checks` is the per-check
+    breakdown when the verifier emits one, and None when it does not.
+    """
     try:
         proc = subprocess.run(
             [sys.executable, str(task['dir'] / 'check.py'), str(ws)],
             capture_output=True, text=True, timeout=timeout,
         )
     except subprocess.TimeoutExpired:
-        return False, 'check timed out'
-    return proc.returncode == 0, (proc.stdout or proc.stderr or '').strip()[:800]
+        return False, 'check timed out', None
+    detail = (proc.stdout or proc.stderr or '').strip()
+    checks = parse_checks(proc.stdout)
+    if checks is not None:
+        # The JSON line is scoring data, not reading material. Strip it out of
+        # the detail so a stored run does not carry the same facts twice in two
+        # formats that can drift apart.
+        detail = detail.split('\n', 1)[1].strip() if '\n' in detail else ''
+    return proc.returncode == 0, detail[:800], checks
 
 
 def main():

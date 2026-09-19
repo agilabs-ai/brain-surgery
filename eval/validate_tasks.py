@@ -130,6 +130,38 @@ def check_verifier(path: Path) -> list[str]:
         notes.append(f'check.py imports {sorted(bad)}, which makes it non-deterministic')
 
     # A verifier that can only ever exit 0 passes a blank workspace.
+    #
+    # Two shapes are legal. The original one calls sys.exit directly. The migrated
+    # one hands control to checklib, which runs every section, prints the per-check
+    # JSON and then exits non-zero if any section failed. For that shape the exit
+    # lives in checklib, so looking for a literal sys.exit here would condemn every
+    # migrated task, which is exactly what happened the first time this ran after
+    # the migration. The equivalent guarantee is checked instead: it must call
+    # report(), and it must record at least one section that can fail.
+    calls = {n for n in ast.walk(tree) if isinstance(n, ast.Call)}
+    names = {getattr(c.func, 'id', '') or getattr(c.func, 'attr', '') for c in calls}
+    uses_checklib = any(
+        (isinstance(n, ast.ImportFrom) and (n.module or '') == 'checklib')
+        or (isinstance(n, ast.Import) and any(a.name == 'checklib' for a in n.names))
+        for n in ast.walk(tree))
+
+    if uses_checklib:
+        # `report` is imported as `emit` by convention, so accept either name.
+        if not ({'emit', 'report'} & names):
+            notes.append('check.py imports checklib but never calls report(); '
+                         'nothing would print the per-check result or set the exit code')
+        sections = sum(1 for n in ast.walk(tree)
+                       for item in getattr(n, 'items', [])
+                       if isinstance(getattr(item, 'context_expr', None), ast.Call)
+                       and getattr(item.context_expr.func, 'id', '') == 'section')
+        if not sections:
+            notes.append('check.py imports checklib but declares no section(), '
+                         'so it records nothing and can only ever pass')
+        elif 'fail' not in names:
+            notes.append('check.py declares sections but never calls fail(), '
+                         'so every section passes unconditionally')
+        return notes
+
     exits = {ast.unparse(n.args[0]) if n.args else '0'
              for n in ast.walk(tree)
              if isinstance(n, ast.Call) and getattr(n.func, 'id', '') == 'exit'

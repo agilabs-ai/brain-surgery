@@ -1,0 +1,16 @@
+{
+  "id": "csv-rollup",
+  "kind": "integration-fixture",
+  "purpose": "Prove the adapters, configuration control, scoring contract and report work end to end. This is NOT evidence about any user's setup, and both arms passing is an acceptable result.",
+  "skill": "csv-rollup-procedure",
+  "prompt": "orders.csv is in this directory. Build me a regional rollup and write it to rollup.json.\n\nCount only orders with status 'shipped'. The export has duplicate rows, so count each order_id once. Only include orders placed in August 2026.\n\nFor each region give the number of orders and the total of amount_eur, rounded to 2 decimal places. Shape it as {\"regions\": {\"<REGION>\": {\"orders\": <int>, \"total_eur\": <number>}}}.",
+  "acceptance": [
+    "rollup.json exists and is valid JSON",
+    "only shipped orders counted",
+    "each order_id counted once despite duplicate rows",
+    "only August 2026 orders included (A-1007 is September and must be excluded)",
+    "per-region order counts correct",
+    "per-region totals correct to 2dp",
+    "orders.csv left unmodified"
+  ]
+}

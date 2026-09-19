@@ -86,9 +86,26 @@ def collect(run_dir: Path):
             excluded.append({'task': r['task'], 'arm': r['arm'], 'trial': r['trial'],
                              'reason': 'timeout' if r.get('timed_out') else f'exit {r.get("returncode")}'})
             continue
-        cell = scores[r['arm']].setdefault(r['task'], {'passed': 0, 'total': 0, 'loaded': 0, 'loaded_known': 0})
+        cell = scores[r['arm']].setdefault(r['task'], {
+            'passed': 0, 'total': 0, 'loaded': 0, 'loaded_known': 0,
+            # Checks, split by what the prompt did and did not say. A task whose
+            # verifier still scores one bit contributes nothing here and is
+            # counted as unmigrated rather than as zero, because a task with no
+            # outcome checks recorded and a task that failed all of them are
+            # opposite facts and must not share a number.
+            'outcome_passed': 0, 'outcome_total': 0,
+            'convention_passed': 0, 'convention_total': 0,
+            'graded_trials': 0,
+        })
         cell['total'] += 1
         cell['passed'] += 1 if r['passed'] else 0
+        totals = r.get('check_totals')
+        if totals:
+            cell['graded_trials'] += 1
+            for kind in ('outcome', 'convention'):
+                part = totals.get(kind) or {}
+                cell[f'{kind}_passed'] += int(part.get('passed', 0))
+                cell[f'{kind}_total'] += int(part.get('total', 0))
         if r.get('skill_loaded') is not None:
             cell['loaded_known'] += 1
             cell['loaded'] += 1 if r['skill_loaded'] else 0
@@ -127,6 +144,27 @@ def cost_summary(costs: dict) -> dict:
             'billed_per_pass': round(billed / passes) if passes else None,
         }
     return out
+
+
+def class_rate(arm_tasks, task_ids, kind: str):
+    """Task-macro rate over one class of check: 'outcome' or 'convention'.
+
+    The same shape as the headline metric, one level down. A task scores the
+    fraction of its checks of that class that passed, pooled across its trials,
+    and the arm scores the mean of those task scores. Tasks with no checks of
+    that class are left out rather than scored zero: a task that asserts no
+    house convention has nothing to say about convention compliance, and
+    counting it as a failure would punish an arm for a check nobody wrote.
+
+    Returns None when no task in the set contributes, which is the honest
+    answer for a corpus that has not been migrated rather than a rate of zero.
+    """
+    fracs = [arm_tasks[t][f'{kind}_passed'] / arm_tasks[t][f'{kind}_total']
+             for t in task_ids
+             if t in arm_tasks and arm_tasks[t].get(f'{kind}_total')]
+    if not fracs:
+        return None
+    return round(100.0 * sum(fracs) / len(fracs), 1)
 
 
 def macro_rate(arm_tasks, task_ids):
@@ -227,6 +265,29 @@ def compare(scores, before_arm, after_arm, label=None):
                   'rate': round(ar, 1), 'passed': ap, 'trials': at, 'ci95': wilson(ap, at)},
         'tasks_compared': len(task_ids),
         'delta_points': round(delta, 1),
+        # The headline split in two. `outcome` is the fair fight: checks whose
+        # requirement is in the prompt or is plain correctness, so an agent that
+        # never saw the skill can pass them. `convention` is the house rule the
+        # prompt withholds, which only the skill can supply.
+        #
+        # Reported beside the headline rather than instead of it, because the
+        # single rate is still what a user experiences: a task that misses the
+        # convention is a task they have to redo. But a reader who is told only
+        # that number cannot tell competence from compliance, and the gap on
+        # this corpus is mostly compliance.
+        'by_check_class': {
+            kind: {
+                'before': class_rate(b, task_ids, kind),
+                'after': class_rate(a, task_ids, kind),
+                'delta_points': (
+                    round(class_rate(a, task_ids, kind) - class_rate(b, task_ids, kind), 1)
+                    if class_rate(a, task_ids, kind) is not None
+                    and class_rate(b, task_ids, kind) is not None else None),
+                'tasks_graded': sum(1 for t in task_ids
+                                    if a.get(t, {}).get(f'{kind}_total')
+                                    and b.get(t, {}).get(f'{kind}_total')),
+            } for kind in ('outcome', 'convention')
+        },
         # Share of the remaining headroom closed. A +10 from 80 is a different
         # achievement from a +10 from 20, and this is the number that says so.
         'normalized_gain': round(100 * delta / (100 - br), 1) if br < 100 else None,
