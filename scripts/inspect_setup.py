@@ -483,7 +483,18 @@ def default_skill_roots(project: Path, home: Path, host: str='claude') -> list[P
         roots.append(home/'.codex/skills')
     for h in hosts:
         roots += plugin_cache_roots(home/('.%s/plugins/cache' % h))
-    return roots
+    # Scanning the home directory itself makes the project-local and user-level
+    # roots the same path, so every warning about a missing root was printed
+    # twice and any skill found there would have been inventoried twice.
+    seen: set[str] = set()
+    unique: list[Path] = []
+    for r in roots:
+        key = str(r)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(r)
+    return unique
 
 
 def plugin_cache_roots(cache: Path) -> list[Path]:
