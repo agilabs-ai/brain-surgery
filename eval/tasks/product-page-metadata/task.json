@@ -1,0 +1,7 @@
+{
+  "id": "product-page-metadata",
+  "workflow": "coding",
+  "skill": "bsw-page-metadata",
+  "prompt": "Someone dropped the Quickstash link into a group chat and it came through as a bare URL, no preview card at all. The pages are in site/pages/ and the catalog is catalog.json. Can you sort that out across the whole catalog?",
+  "seed": {}
+}

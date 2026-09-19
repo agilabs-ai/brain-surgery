@@ -1,0 +1,7 @@
+{
+  "id": "thread-handoff-note",
+  "workflow": "writing",
+  "skill": "bsr-handoff-note",
+  "prompt": "I am handing the pricing importer thread (4f21c8) to the other box tonight and I will not be around in the morning. The whole session is dumped in prior/. Write handoff.md here so whoever picks it up is not starting cold.",
+  "seed": {}
+}

@@ -1,0 +1,104 @@
+/* cloud.css - styles for the ambient pixel-cloud background (see cloud.js).
+   Two selectors are owned by the script: .bs-cloud-host goes on the mount element,
+   .bs-cloud-canvas on the canvas it creates. .bs-cloud-fallback marks a host where
+   WebGL was unavailable, the context was lost, or anything threw. */
+
+/* New tokens are declared on bare :root first, so the page's own dark blocks
+   (@media prefers-color-scheme under :root:not([data-theme="light"]), and
+   :root[data-theme="dark"]) only ever override an already-defined value. */
+:root {
+  --bs-cloud-accent: var(--blue, #154cff);
+  --bs-cloud-fallback-alpha: .055;
+  --bs-cloud-fade-ms: 600ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* the same haze needs more presence on a near-black ground */
+    --bs-cloud-fallback-alpha: .12;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bs-cloud-fallback-alpha: .12;
+}
+
+/* The host becomes its own stacking context, which is what lets the canvas sit
+   at z-index:-1 behind every child without any child declaring a z-index.
+   Positioning is deliberately NOT set here: a host may already be an
+   `position:absolute; inset:0` overlay, and this file is often inlined after the
+   page's own stylesheet, where a `position:relative` at equal specificity would
+   silently collapse that overlay. The script adds .bs-cloud-anchor instead, and
+   only when the host computes to `position:static`. */
+.bs-cloud-host {
+  isolation: isolate;
+}
+
+.bs-cloud-anchor {
+  position: relative;
+}
+
+.bs-cloud-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  border-radius: inherit;
+  contain: layout paint style;
+  /* Hidden until the script has drawn one complete frame, so a partial frame is
+     never on screen. The reveal is a plain class flip by default; the transition
+     is opt-in (mount option fadeIn), because a stalled transition in a headless
+     screenshot is indistinguishable from a broken canvas. */
+  opacity: 0;
+}
+
+.bs-cloud-canvas.bs-cloud-fade {
+  transition: opacity var(--bs-cloud-fade-ms) ease;
+}
+
+.bs-cloud-canvas.bs-cloud-on {
+  opacity: 1;
+}
+
+/* Static fallback: no canvas at all, just a very low-opacity haze in the accent,
+   masked the same way the shader mask is (clear at the top, gone before the
+   bottom edge) so the page still reads as finished rather than broken. */
+.bs-cloud-fallback::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--bs-cloud-fallback-alpha);
+  background:
+    radial-gradient(58% 48% at 4% 26%, var(--bs-cloud-accent) 0%, transparent 68%),
+    radial-gradient(52% 44% at 98% 12%, var(--bs-cloud-accent) 0%, transparent 66%),
+    radial-gradient(64% 40% at 88% 78%, var(--bs-cloud-accent) 0%, transparent 70%);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent var(--bs-cloud-top, 0px),
+    #000 calc(var(--bs-cloud-top, 0px) + 96px),
+    #000 62%,
+    transparent 94%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent var(--bs-cloud-top, 0px),
+    #000 calc(var(--bs-cloud-top, 0px) + 96px),
+    #000 62%,
+    transparent 94%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bs-cloud-canvas,
+  .bs-cloud-canvas.bs-cloud-fade {
+    transition: none;
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "arm": "with",
+  "sample": 4,
+  "score": 0,
+  "exit": 1,
+  "seconds": 52,
+  "note": "worker crashed while loading the fixture"
+}

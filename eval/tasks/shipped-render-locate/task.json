@@ -1,0 +1,7 @@
+{
+  "id": "shipped-render-locate",
+  "workflow": "research",
+  "skill": "bsr-archive-lookup",
+  "prompt": "I need the quarter recap clip, the one that actually went out in March, for tomorrow's deck. Where does it live? Put the answer in pointer.txt.",
+  "seed": {}
+}

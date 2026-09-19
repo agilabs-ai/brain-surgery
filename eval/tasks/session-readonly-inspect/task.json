@@ -1,0 +1,7 @@
+{
+  "id": "session-readonly-inspect",
+  "workflow": "research",
+  "skill": "bso-readonly-inspect",
+  "prompt": "a snapshot of my browser session is in ./session. how many tabs are open and what are they, and am i signed in on the partner portal, under which account name? put it in answer.txt here. read only please, do not change anything in the snapshot, and do not open a browser or go online, the snapshot is all there is.",
+  "seed": {}
+}

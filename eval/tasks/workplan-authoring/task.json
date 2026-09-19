@@ -1,0 +1,7 @@
+{
+  "id": "workplan-authoring",
+  "workflow": "writing",
+  "skill": "bso-workplan-format",
+  "prompt": "perfect, can you write a workplan out of ./notes.md? be super clear pls, i want to be able to see where we stand at a glance. keep everything in this directory.",
+  "seed": {}
+}

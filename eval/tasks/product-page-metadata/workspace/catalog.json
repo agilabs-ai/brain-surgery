@@ -1,0 +1,26 @@
+{
+  "site": "https://toolshelf.example",
+  "pagePattern": "https://toolshelf.example/tools/<id>/",
+  "tools": [
+    {
+      "id": "quickstash",
+      "title": "Quickstash",
+      "description": "Catch a snippet from wherever you are working and get it back on one keystroke, on any machine."
+    },
+    {
+      "id": "routeguard",
+      "title": "Routeguard",
+      "description": "Watch every route your app exposes and get told the moment one of them starts answering differently."
+    },
+    {
+      "id": "deskmap",
+      "title": "Deskmap",
+      "description": "See who is in the office this week without asking anyone, and book the desk next to them."
+    },
+    {
+      "id": "pagelapse",
+      "title": "Pagelapse",
+      "description": "Keep a visual history of any page you care about and scrub back to the day it changed."
+    }
+  ]
+}

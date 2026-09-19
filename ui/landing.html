@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Brain Surgery, by AGI Labs</title>
-<meta name="description" content="How much of your installed agent capability your agent actually reaches.">
+<meta name="description" content="Scan your AI setup and measure what it is actually worth on your own work.">
 <link rel="icon" href="assets/brand/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png">
 <link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
 <meta property="og:title" content="Brain Surgery, by AGI Labs">
-<meta property="og:description" content="How much of your installed agent capability your agent actually reaches.">
+<meta property="og:description" content="Scan your AI setup and measure what it is actually worth on your own work.">
 <meta property="og:image" content="assets/brand/og-agi-labs-1200x630.png">
 <meta name="twitter:card" content="summary_large_image">
 <style>
@@ -25,21 +25,75 @@
    one rule covers both themes; --quiet falls back to --line where color-mix is missing,
    which is faint but never leaves the folds strokeless. */
 @supports (color:color-mix(in srgb,#050505 28%,#FFFFFF)){:root{--quiet:color-mix(in srgb,var(--ink) 28%,var(--paper))}}
-*{box-sizing:border-box}html{background:var(--paper)}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 var(--font);-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}button{font:inherit}img{max-width:100%}.wrap{width:min(1120px,calc(100% - 2 * var(--pad)));margin:auto}
+*{box-sizing:border-box}html{background:var(--paper);overflow-x:clip}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 var(--font);-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}button{font:inherit}img{max-width:100%}.wrap{width:min(1120px,calc(100% - 2 * var(--pad)));margin:auto}
 .nav{height:68px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700;letter-spacing:-.45px}.brand>svg{width:27px;height:18px}.brand>strong{text-transform:lowercase}.product{font-size:12px;color:var(--muted)}
-.hero{min-height:calc(100vh - 118px);display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:76px;align-items:center;padding:64px 0 72px}h1{font-size:72px;line-height:.93;letter-spacing:-5px;font-weight:630;margin:0 0 32px;max-width:620px}
+.hero{min-height:calc(100vh - 150px);display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:76px;align-items:center;padding:64px 0 72px}h1{font-size:72px;line-height:.93;letter-spacing:-5px;font-weight:630;margin:0 0 20px;max-width:620px}
+.deck{margin:0 0 30px;max-width:520px;font-size:17px;line-height:1.5;color:var(--muted)}
 .prompt{border:1px solid var(--card);border-radius:var(--r);background:var(--card);padding:14px 16px 14px;max-width:620px;transition:background .18s ease,border-color .18s ease,transform .18s ease}.prompt-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}.prompt-step{font-size:11px;letter-spacing:.01em;color:var(--card-ink);opacity:.62;transition:opacity .18s ease}.prompt p{margin:0;font-size:16px;line-height:1.52;letter-spacing:-.12px;color:var(--card-ink);max-width:540px}.prompt-actions{display:none;align-items:center;justify-content:space-between;gap:14px;margin-top:16px;padding-top:13px;border-top:1px solid color-mix(in srgb,var(--card-ink) 20%,transparent)}.next-step{display:none;margin:0;font-size:13px;line-height:1.35;color:var(--card-ink);font-weight:580}.copy{min-height:36px;padding:7px 13px;border:1px solid transparent;border-radius:var(--r);background:var(--card-ink);color:var(--card);font-weight:650;cursor:pointer;white-space:nowrap;transition:opacity .15s ease}.copy:hover{opacity:.85}.prompt.is-copied{--card:var(--blue);--card-ink:#FFFFFF;transform:translateY(-1px)}.prompt.is-copied .prompt-actions{display:flex}.prompt.is-copied .next-step{display:block}.prompt.is-copied p{opacity:.72}
 .compat-row{display:flex;align-items:center;justify-content:space-between;gap:14px;max-width:620px;margin-top:12px}.compat{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;min-width:0}.marks{display:flex;align-items:center;gap:8px}.mark{width:21px;height:21px;display:grid;place-items:center;flex:0 0 auto;color:var(--ink)}.mark svg{display:block;width:100%;height:100%;fill:currentColor}.mark .mk-bg{fill:var(--paper)}.mark .mk-mid{fill:var(--line)}.any{white-space:nowrap}.privacy{margin:0;font-size:11px;color:var(--muted);white-space:nowrap}
-.footer{border-top:1px solid var(--line);min-height:50px;display:flex;align-items:center;justify-content:space-between;gap:18px;color:var(--muted);font-size:12px}.footer-brand{display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:650}.footer-brand svg{width:18px;height:12px}.footer-links{display:flex;align-items:center;gap:18px}.footer a:hover{color:var(--ink)}
-.demo{align-self:center}.demo-label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 2px 8px;font-size:12px;color:var(--muted)}.demo-label strong{color:var(--blue);font-weight:600}.scan{display:block;border:1px solid var(--line);border-radius:var(--r);padding:22px 20px 18px;background:var(--paper)}.brain{width:100%;max-width:210px;margin:-2px auto 2px}.brain svg{display:block;width:100%;height:auto}
-.brain-svg .shell{fill:var(--paper);stroke:var(--quiet);stroke-width:2.5}.brain-svg .fill{fill:var(--blue);opacity:.10}.brain-svg .folds{fill:none;stroke:var(--quiet);stroke-width:2.35;stroke-linecap:round;stroke-linejoin:round}.brain-svg .lit{stroke:var(--blue);stroke-width:3.1}.brain-svg .level{fill:none;stroke:var(--blue);stroke-width:2}.brain-svg .rim{fill:none;stroke:var(--blue);stroke-width:3}
-.scores{display:flex;align-items:baseline;justify-content:center;gap:2px}.score{display:flex;align-items:baseline;gap:2px}.score b{font-size:52px;letter-spacing:-3px;font-weight:650;font-variant-numeric:tabular-nums}.score small{font-size:19px;font-weight:650;color:var(--muted)}
-.scan-note{text-align:center;margin:8px auto 0;max-width:290px;font-size:13px;line-height:1.4;color:var(--muted)}.scan-meta{text-align:center;margin:10px 0 0;font-size:12px;color:var(--muted)}.scan-foot{text-align:center;margin-top:5px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}.scan-link{text-align:center;margin:12px 0 0;font-size:13px}.scan-link a{color:var(--blue);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--blue) 35%,transparent);padding-bottom:1px}.scan-link a:hover{border-bottom-color:var(--blue)}
-@media(max-width:900px){.hero{grid-template-columns:1fr;gap:44px;min-height:auto;padding:54px 0 60px}.demo{max-width:500px}h1{font-size:62px}}
-@media(max-width:620px){:root{--pad:max(16px,env(safe-area-inset-left,0px))}.nav{height:62px}.product{font-size:11px}.hero{padding:40px 0 46px;gap:32px}h1{font-size:49px;letter-spacing:-3.3px;margin-bottom:26px}.prompt{padding:13px 13px 12px}.prompt p{font-size:14px}.prompt-head{margin-bottom:11px}.prompt-actions{margin-top:14px;padding-top:12px}.next-step{font-size:12px}.compat-row{align-items:flex-start;gap:8px}.compat{gap:7px;font-size:11px}.marks{gap:6px}.mark{width:19px;height:19px}.any{display:none}.copy{min-height:36px;padding:8px 12px}.privacy{font-size:10px;white-space:normal;text-align:right}.scan{padding:16px 12px 15px}.brain{max-width:186px}.scores .score b{font-size:44px}.footer{min-height:54px}.footer-links{gap:13px}}
+.footer{border-top:1px solid var(--line);min-height:50px;display:flex;align-items:center;justify-content:space-between;gap:18px;color:var(--muted);font-size:12px;flex-wrap:wrap}.footer-brand{display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:650}.footer-brand svg{width:18px;height:12px}.footer-links{display:flex;align-items:center;gap:18px}.footer a:hover{color:var(--ink)}
+
+/* Result card. The brain is the product's signature gauge: each shell fills to the
+   measured pass rate, so the pair reads as one picture of the same model run twice. */
+.result{align-self:center;min-width:0}
+.result-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 2px 8px;font-size:12px;color:var(--muted)}.result-head strong{color:var(--blue);font-weight:600;font-variant-numeric:tabular-nums}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:20px 18px 16px;background:var(--paper)}
+.gauges{display:flex;align-items:flex-end;justify-content:center;gap:16px}
+.gauge{flex:1 1 0;min-width:0;text-align:center}
+.brain{width:100%;max-width:134px;margin:0 auto 6px}.brain svg{display:block;width:100%;height:auto}
+.brain-svg .shell{fill:var(--paper);stroke:var(--quiet);stroke-width:2.5}
+.brain-svg .folds{fill:none;stroke:var(--quiet);stroke-width:2.35;stroke-linecap:round;stroke-linejoin:round}
+.brain-svg .lit{stroke:var(--blue);stroke-width:3.1}
+.brain-svg .fill{fill:var(--blue);opacity:.10}
+.brain-svg .level{fill:none;stroke:var(--blue);stroke-width:2}
+.brain-svg .rim{fill:none;stroke:var(--blue);stroke-width:3}
+.gauge.without .brain-svg .lit,.gauge.without .brain-svg .rim{stroke:var(--ink)}
+.gauge.without .brain-svg .level{stroke:var(--ink)}
+.gauge.without .brain-svg .fill{fill:var(--ink)}
+.rate{display:block;font-size:34px;line-height:1;letter-spacing:-1.6px;font-weight:650;font-variant-numeric:tabular-nums}
+.rate small{font-size:16px;font-weight:650;color:var(--muted);letter-spacing:0}
+.gauge.with .rate{color:var(--blue)}
+.cap{display:block;margin-top:5px;font-size:12px;line-height:1.35;color:var(--muted)}
+.result-note{margin:16px 0 0;font-size:13px;line-height:1.45;color:var(--muted)}
+.result-note b{color:var(--ink);font-weight:600}
+.result-link{margin:12px 0 0;font-size:13px}
+.result-link a,.more a{color:var(--blue);border-bottom:1px solid color-mix(in srgb,var(--blue) 35%,transparent);padding-bottom:1px}
+.result-link a:hover,.more a:hover{border-bottom-color:var(--blue)}
+
+/* Measured result band */
+.finding{border-top:1px solid var(--line);padding:56px 0 60px}
+.finding h2{font-size:36px;line-height:1.08;letter-spacing:-1.6px;font-weight:630;margin:0 0 16px;max-width:760px}
+.lead{margin:0 0 30px;max-width:720px;font-size:16px;line-height:1.55;color:var(--muted)}
+.matrix{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:760px}
+.cell{border:1px solid var(--line);border-radius:var(--r);padding:16px 15px 14px;min-width:0}
+.cell.on{border-color:var(--blue)}
+.cell .rate{font-size:40px;letter-spacing:-2.2px}
+.cell.on .rate{color:var(--blue)}
+.cell h3{margin:0 0 10px;font-size:13px;font-weight:600;line-height:1.3}
+.cell p{margin:8px 0 0;font-size:12px;line-height:1.4;color:var(--muted);font-variant-numeric:tabular-nums}
+.contrasts{list-style:none;margin:28px 0 0;padding:0;display:grid;gap:12px;max-width:760px}
+.contrasts li{border-left:2px solid var(--line);padding:2px 0 2px 14px}
+.contrasts li.key{border-left-color:var(--blue)}
+.contrasts h3{margin:0;font-size:14px;font-weight:600;line-height:1.35}
+.contrasts .delta{font-variant-numeric:tabular-nums;color:var(--blue);font-weight:650}
+.contrasts li:not(.key) .delta{color:var(--ink)}
+.contrasts p{margin:4px 0 0;font-size:13px;line-height:1.45;color:var(--muted);max-width:640px}
+.scope{margin-top:34px;border:1px solid var(--line);border-radius:var(--r);padding:20px 20px 18px;max-width:760px}
+.scope h3{margin:0 0 12px;font-size:15px;font-weight:650}
+.scope ul{margin:0;padding-left:18px;display:grid;gap:9px}
+.scope li{font-size:13px;line-height:1.5;color:var(--muted)}
+.scope li b{color:var(--ink);font-weight:600}
+.more{margin:26px 0 0;font-size:14px}
+.method{margin:10px 0 0;font-size:12px;color:var(--muted)}
+
+@media(max-width:900px){.hero{grid-template-columns:1fr;gap:44px;min-height:auto;padding:54px 0 60px}.result{max-width:500px}h1{font-size:62px}.finding h2{font-size:32px}}
+@media(max-width:620px){:root{--pad:max(16px,env(safe-area-inset-left,0px))}.nav{height:62px}.product{font-size:11px}.hero{padding:40px 0 46px;gap:32px}h1{font-size:49px;letter-spacing:-3.3px;margin-bottom:16px}.deck{font-size:16px;margin-bottom:24px}.prompt{padding:13px 13px 12px}.prompt p{font-size:14px}.prompt-head{margin-bottom:11px}.prompt-actions{margin-top:14px;padding-top:12px}.next-step{font-size:12px}.compat-row{align-items:flex-start;gap:8px}.compat{gap:7px;font-size:11px}.marks{gap:6px}.mark{width:19px;height:19px}.any{display:none}.copy{min-height:36px;padding:8px 12px}.privacy{font-size:10px;white-space:normal;text-align:right}
+.card{padding:16px 12px 14px}.gauges{gap:10px}.brain{max-width:118px}.rate{font-size:29px;letter-spacing:-1.3px}.rate small{font-size:14px}
+.finding{padding:44px 0 48px}.finding h2{font-size:27px;letter-spacing:-1.1px}.lead{font-size:15px}.matrix{gap:9px}.cell{padding:13px 12px 12px}.cell .rate{font-size:31px;letter-spacing:-1.5px}.scope{padding:16px 15px 15px}.footer{min-height:54px;padding:12px 0}.footer-links{gap:13px}}
 </style>
 </head>
 <body>
+<svg class="fold-source" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg"><defs><g id="bs-folds"><path d="M143 55 C161 58 169 71 164 87 C159 102 140 102 128 95"/><path d="M91 88 C101 106 103 119 90 130 C81 138 64 137 51 136"/><path d="M163 85 C184 91 190 109 180 125 C174 136 155 139 140 130 C130 124 121 127 117 138"/><path d="M111 79 C111 65 129 60 140 69"/><path d="M61 107 C76 101 82 111 78 118"/><path d="M45 196 C65 176 87 184 90 164 C92 154 83 146 74 149"/><path d="M93 129 C112 119 126 103 122 86"/><path d="M139 131 C148 150 143 173 129 179 C109 188 103 210 117 226 C127 239 149 239 158 230"/><path d="M185 110 C201 127 196 149 177 155 C159 162 160 185 173 196"/><path d="M64 167 C57 177 57 190 68 198 C90 216 72 230 56 223"/><path d="M43 221 C31 240 62 258 78 246 C92 236 100 247 101 260"/><path d="M177 155 C190 162 195 178 190 190"/><path d="M129 179 C146 182 153 196 146 210"/><path d="M89 208 C96 223 86 245 80 259 C73 278 88 291 101 285"/><path d="M119 226 C108 244 118 258 136 260 C153 264 158 280 149 293 C135 312 142 330 160 329"/><path d="M173 196 C155 212 166 231 183 234 C199 237 204 253 195 267 C183 284 166 286 169 307"/><path d="M59 260 C69 263 67 280 60 285"/><path d="M101 260 C114 273 116 294 102 305 C94 311 90 314 88 318"/><path d="M164 239 C151 236 143 244 146 253"/><path d="M169 307 C187 301 202 310 200 328 C198 349 179 354 166 348"/><path d="M106 334 C117 319 130 326 132 341 C134 356 153 364 166 348"/><path d="M131 365 C128 355 118 347 108 348"/><path d="M199 82 C185 71 186 60 181 50"/><path d="M183 279 C175 269 164 267 157 271"/><path d="M161 108 C155 113 153 121 156 128"/><path d="M124 196 C132 201 132 213 127 218"/><path d="M181 214 C190 212 200 216 207 224"/></g></defs></svg>
 <div class="wrap">
 <nav class="nav">
   <a class="brand" href="/" aria-label="AGI Labs home"><svg viewBox="0 0 100 66.6667" aria-hidden="true"><path d="M 0 50 A 50 50 0 0 1 100 50 L 100 66.6667 L 0 66.6667 Z" fill="currentColor"/></svg><strong>agi labs</strong></a>
@@ -48,6 +102,7 @@
 <main class="hero">
   <section class="intro">
     <h1>Scan your AI’s brain.</h1>
+    <p class="deck">Brain Surgery reads the AI setup you already have installed, then measures how much of it your agent actually reaches on your own work.</p>
     <div class="prompt" id="prompt-card">
       <div class="prompt-head">
         <span class="prompt-step" id="prompt-step">1 · Copy this prompt</span>
@@ -72,34 +127,109 @@
     </div>
   </section>
 
-  <section class="demo" aria-label="Example Brain Surgery scan result">
-    <div class="demo-label"><span>Example scan</span><strong>191 skills installed</strong></div>
-    <div class="scan">
-      <div class="brain"><svg class="brain-svg" xmlns="http://www.w3.org/2000/svg" viewBox="8 40 230 346" fill="none" role="img" aria-label="A brain filled to the share of installed skills the agent reached: 37 of 191, over the scanned window.">
+  <section class="result" aria-labelledby="result-heading">
+    <div class="result-head"><span id="result-heading">Measured, 24 tasks</span><strong>+72.2 points</strong></div>
+    <div class="card">
+      <div class="gauges">
+        <div class="gauge without">
+          <div class="brain"><svg class="brain-svg" xmlns="http://www.w3.org/2000/svg" viewBox="8 40 230 346" fill="none" role="img" aria-label="A brain filled to 1.4 percent: the base model with no setup installed passed 1.4 percent of the tasks.">
 <defs>
-  <clipPath id="landing-brain-shape"><path d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></clipPath>
-  <clipPath id="landing-brain-level"><rect x="20" y="316.524" width="195" height="65.476"/></clipPath>
+  <clipPath id="g-off-shape"><path d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></clipPath>
+  <clipPath id="g-off-level"><rect x="20" y="377.268" width="195" height="4.732"/></clipPath>
 </defs>
 <path class="shell" d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/>
-<g clip-path="url(#landing-brain-shape)">
-  <rect class="fill" data-percent="19.37173" data-side="reached" x="20" y="316.524" width="195" height="65.476"/>
-  <g class="folds"><path d="M143 55 C161 58 169 71 164 87 C159 102 140 102 128 95"/><path d="M91 88 C101 106 103 119 90 130 C81 138 64 137 51 136"/><path d="M163 85 C184 91 190 109 180 125 C174 136 155 139 140 130 C130 124 121 127 117 138"/><path d="M111 79 C111 65 129 60 140 69"/><path d="M61 107 C76 101 82 111 78 118"/><path d="M45 196 C65 176 87 184 90 164 C92 154 83 146 74 149"/><path d="M93 129 C112 119 126 103 122 86"/><path d="M139 131 C148 150 143 173 129 179 C109 188 103 210 117 226 C127 239 149 239 158 230"/><path d="M185 110 C201 127 196 149 177 155 C159 162 160 185 173 196"/><path d="M64 167 C57 177 57 190 68 198 C90 216 72 230 56 223"/><path d="M43 221 C31 240 62 258 78 246 C92 236 100 247 101 260"/><path d="M177 155 C190 162 195 178 190 190"/><path d="M129 179 C146 182 153 196 146 210"/><path d="M89 208 C96 223 86 245 80 259 C73 278 88 291 101 285"/><path d="M119 226 C108 244 118 258 136 260 C153 264 158 280 149 293 C135 312 142 330 160 329"/><path d="M173 196 C155 212 166 231 183 234 C199 237 204 253 195 267 C183 284 166 286 169 307"/><path d="M59 260 C69 263 67 280 60 285"/><path d="M101 260 C114 273 116 294 102 305 C94 311 90 314 88 318"/><path d="M164 239 C151 236 143 244 146 253"/><path d="M169 307 C187 301 202 310 200 328 C198 349 179 354 166 348"/><path d="M106 334 C117 319 130 326 132 341 C134 356 153 364 166 348"/><path d="M131 365 C128 355 118 347 108 348"/><path d="M199 82 C185 71 186 60 181 50"/><path d="M183 279 C175 269 164 267 157 271"/><path d="M161 108 C155 113 153 121 156 128"/><path d="M124 196 C132 201 132 213 127 218"/><path d="M181 214 C190 212 200 216 207 224"/></g>
-  <g class="folds lit" clip-path="url(#landing-brain-level)"><path d="M143 55 C161 58 169 71 164 87 C159 102 140 102 128 95"/><path d="M91 88 C101 106 103 119 90 130 C81 138 64 137 51 136"/><path d="M163 85 C184 91 190 109 180 125 C174 136 155 139 140 130 C130 124 121 127 117 138"/><path d="M111 79 C111 65 129 60 140 69"/><path d="M61 107 C76 101 82 111 78 118"/><path d="M45 196 C65 176 87 184 90 164 C92 154 83 146 74 149"/><path d="M93 129 C112 119 126 103 122 86"/><path d="M139 131 C148 150 143 173 129 179 C109 188 103 210 117 226 C127 239 149 239 158 230"/><path d="M185 110 C201 127 196 149 177 155 C159 162 160 185 173 196"/><path d="M64 167 C57 177 57 190 68 198 C90 216 72 230 56 223"/><path d="M43 221 C31 240 62 258 78 246 C92 236 100 247 101 260"/><path d="M177 155 C190 162 195 178 190 190"/><path d="M129 179 C146 182 153 196 146 210"/><path d="M89 208 C96 223 86 245 80 259 C73 278 88 291 101 285"/><path d="M119 226 C108 244 118 258 136 260 C153 264 158 280 149 293 C135 312 142 330 160 329"/><path d="M173 196 C155 212 166 231 183 234 C199 237 204 253 195 267 C183 284 166 286 169 307"/><path d="M59 260 C69 263 67 280 60 285"/><path d="M101 260 C114 273 116 294 102 305 C94 311 90 314 88 318"/><path d="M164 239 C151 236 143 244 146 253"/><path d="M169 307 C187 301 202 310 200 328 C198 349 179 354 166 348"/><path d="M106 334 C117 319 130 326 132 341 C134 356 153 364 166 348"/><path d="M131 365 C128 355 118 347 108 348"/><path d="M199 82 C185 71 186 60 181 50"/><path d="M183 279 C175 269 164 267 157 271"/><path d="M161 108 C155 113 153 121 156 128"/><path d="M124 196 C132 201 132 213 127 218"/><path d="M181 214 C190 212 200 216 207 224"/><path d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></g>
-  <path class="level" d="M29 358.995H212"/>
+<g clip-path="url(#g-off-shape)">
+  <rect class="fill" data-percent="1.40000" data-side="without" x="20" y="377.268" width="195" height="4.732"/>
+  <g class="folds"><use href="#bs-folds"/></g>
+  <g class="folds lit" clip-path="url(#g-off-level)"><use href="#bs-folds"/><path d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></g>
+  <path class="level" d="M29 377.268H212"/>
 </g>
-<g clip-path="url(#landing-brain-level)"><path class="rim" d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></g>
+<g clip-path="url(#g-off-level)"><path class="rim" d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></g>
 </svg></div>
-      <div class="scores"><span class="score"><b>81</b><small>%</small></span></div>
-      <p class="scan-note">of installed capability was never loaded in this window.</p>
-      <p class="scan-meta">37 reached · 3 failed to load · 5 shadowed by a name collision</p>
-      <div class="scan-foot">22,671 turns · 302 sessions · 30 days</div>
-      <p class="scan-link"><a href="example-scan.html">See the whole report</a></p>
+          <b class="rate">1.4<small>%</small></b>
+          <span class="cap">setup not installed</span>
+        </div>
+        <div class="gauge with">
+          <div class="brain"><svg class="brain-svg" xmlns="http://www.w3.org/2000/svg" viewBox="8 40 230 346" fill="none" role="img" aria-label="A brain filled to 73.6 percent: the same base model with the setup installed passed 73.6 percent of the tasks.">
+<defs>
+  <clipPath id="g-on-shape"><path d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></clipPath>
+  <clipPath id="g-on-level"><rect x="20" y="133.232" width="195" height="248.768"/></clipPath>
+</defs>
+<path class="shell" d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/>
+<g clip-path="url(#g-on-shape)">
+  <rect class="fill" data-percent="73.60000" data-side="with" x="20" y="133.232" width="195" height="248.768"/>
+  <g class="folds"><use href="#bs-folds"/></g>
+  <g class="folds lit" clip-path="url(#g-on-level)"><use href="#bs-folds"/><path d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></g>
+  <path class="level" d="M29 133.232H212"/>
+</g>
+<g clip-path="url(#g-on-level)"><path class="rim" d="M204 61 C191 34 157 39 143 55 C119 46 93 62 91 88 C62 87 45 111 51 136 C27 151 26 179 43 198 C27 221 39 251 59 260 C48 287 64 313 88 318 C87 345 106 365 131 365 C146 391 183 386 201 367 C212 355 211 337 211 320 L211 88 C211 77 210 68 204 61Z"/></g>
+</svg></div>
+          <b class="rate">73.6<small>%</small></b>
+          <span class="cap">setup installed</span>
+        </div>
+      </div>
+      <p class="result-note"><b>Same model, same prompts.</b> The only change is whether the installed setup was there. The tasks turn on house conventions the prompt never states, so this is a measure of convention compliance, not of general ability.</p>
+      <p class="result-link"><a href="report.html">See the full report and its limits</a></p>
     </div>
   </section>
 </main>
+
+<section class="finding" aria-labelledby="finding-heading">
+  <h2 id="finding-heading">A weaker model with the setup beat a stronger model without it, by 70.8 points.</h2>
+  <p class="lead">24 tasks were rebuilt from real session logs and run three times each across a two by two grid: two models, each with and without the installed setup. 288 runs, no infrastructure errors. The metric is the task macro pass rate, so every task counts once.</p>
+  <div class="matrix">
+    <div class="cell">
+      <h3>Base model, no setup</h3>
+      <b class="rate">1.4<small>%</small></b>
+      <p>1 of 72 trials passed · 95% CI 0.2 to 7.5</p>
+    </div>
+    <div class="cell on">
+      <h3>Base model, setup installed</h3>
+      <b class="rate">73.6<small>%</small></b>
+      <p>53 of 72 trials passed · 95% CI 62.4 to 82.4</p>
+    </div>
+    <div class="cell">
+      <h3>Stronger model, no setup</h3>
+      <b class="rate">2.8<small>%</small></b>
+      <p>2 of 72 trials passed · 95% CI 0.8 to 9.6</p>
+    </div>
+    <div class="cell on">
+      <h3>Stronger model, setup installed</h3>
+      <b class="rate">90.3<small>%</small></b>
+      <p>65 of 72 trials passed · 95% CI 81.3 to 95.2</p>
+    </div>
+  </div>
+  <ul class="contrasts">
+    <li class="key">
+      <h3>Install the setup, keep the model. <span class="delta">+72.2 points</span></h3>
+      <p>1.4% to 73.6%. 21 of the 24 tasks improved and none regressed. McNemar p 0.0.</p>
+    </li>
+    <li>
+      <h3>Upgrade the model, install nothing. <span class="delta">+1.4 points</span></h3>
+      <p>1.4% to 2.8%. Exactly one task changed direction, which is the smallest signal this sample can carry. McNemar p 1.0, so read it as a direction, not as proof.</p>
+    </li>
+    <li class="key">
+      <h3>Base model with the setup, against the stronger model without it. <span class="delta">+70.8 points</span></h3>
+      <p>73.6% against 2.8%, in the setup's favour. 21 tasks improved, 3 held level, none regressed.</p>
+    </li>
+  </ul>
+  <div class="scope">
+    <h3>What this does not say</h3>
+    <ul>
+      <li><b>It is not a claim about skills in general.</b> Each task asserts a house convention that is arbitrary by construction, roughly fourteen checks deep, and nowhere in the prompt. An agent without the setup has no way to guess it, so the no-setup arms sit near the floor and the gap measures convention compliance rather than general task ability.</li>
+      <li><b>It is not one rule doing the work.</b> Rewriting every em dash in all 141 failed no-setup runs, then re-running the untouched verifiers, rescued none of them. The failures spread across 31 distinct messages.</li>
+      <li><b>n equals one machine.</b> Every task is drawn from one person's real session logs, so this measures this setup, not setups in general.</li>
+      <li><b>Discovery and use are measured together.</b> Prompts are identical across arms and never mention that a skill exists, so the with-setup arms show what an agent finds and then applies, not use alone.</li>
+      <li><b>The verifier is blind.</b> It is a fixed script that runs against the finished workspace and never sees which arm produced it.</li>
+    </ul>
+  </div>
+  <p class="more"><a href="report.html">Read the full report: every task, every trial, every failure message</a></p>
+  <p class="method">Base model Claude Haiku 4.5, stronger model Claude Sonnet 5. 25 installed skills inspected.</p>
+</section>
+
 <footer class="footer">
   <div class="footer-brand"><svg viewBox="0 0 100 66.6667" aria-hidden="true"><path d="M 0 50 A 50 50 0 0 1 100 50 L 100 66.6667 L 0 66.6667 Z" fill="currentColor"/></svg><span>Brain Surgery · agi labs</span></div>
-  <div class="footer-links"><a href="https://github.com/agilabs-ai/brain-surgery">Source</a><a href="https://github.com/agilabs-ai/brain-surgery/blob/main/PRIVACY.md">Privacy</a></div>
+  <div class="footer-links"><a href="report.html">Report</a><a href="https://github.com/agilabs-ai/brain-surgery">Source</a><a href="https://github.com/agilabs-ai/brain-surgery/blob/main/PRIVACY.md">Privacy</a></div>
 </footer>
 </div>
 <script>

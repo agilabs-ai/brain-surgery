@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="The Monday pileup">
+  <rect width="640" height="360" fill="#f2b8b5"/>
+  <rect x="40" y="40" width="560" height="280" rx="14" fill="#ffffff" opacity="0.72"/>
+  <rect x="72" y="80" width="300" height="20" rx="6" fill="#20242c" opacity="0.65"/>
+  <rect x="72" y="120" width="420" height="12" rx="4" fill="#20242c" opacity="0.28"/>
+  <rect x="72" y="146" width="380" height="12" rx="4" fill="#20242c" opacity="0.28"/>
+  <rect x="72" y="200" width="160" height="56" rx="10" fill="#154cff" opacity="0.5"/>
+  <rect x="248" y="200" width="160" height="56" rx="10" fill="#154cff" opacity="0.28"/>
+  <rect x="424" y="200" width="104" height="56" rx="10" fill="#154cff" opacity="0.16"/>
+</svg>

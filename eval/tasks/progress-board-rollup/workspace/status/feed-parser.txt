@@ -1,0 +1,4 @@
+item: feed-parser
+pct: 100
+blocker: none
+notes: v4 manifests parse, duplicate keys are a hard error, shipped on the 5th

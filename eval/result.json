@@ -1,0 +1,3239 @@
+{
+  "schema_version": "brain-surgery/0.5",
+  "example": false,
+  "metric_kind": "task_macro_pass_rate",
+  "metric_note": "Task-macro pass rate: each task scores passes/trials, the arm scores the mean. Matches the SkillsBench primary metric so the numbers are comparable.",
+  "model_family": "Claude",
+  "evaluator_type": "fixed_checks",
+  "skills_inspected": 25,
+  "generated_by": "eval/to_result.py",
+  "grid": {
+    "models": {
+      "base": "claude-haiku-4-5-20251001",
+      "strong": "claude-sonnet-5"
+    },
+    "trials_per_task": 3,
+    "tasks": 24,
+    "arms": {
+      "A": {
+        "label": "base model, no skill",
+        "rate": 1.4,
+        "tasks": 24
+      },
+      "B": {
+        "label": "base model, with skill",
+        "rate": 73.6,
+        "tasks": 24
+      },
+      "C": {
+        "label": "stronger model, no skill",
+        "rate": 2.8,
+        "tasks": 24
+      },
+      "D": {
+        "label": "stronger model, with skill",
+        "rate": 90.3,
+        "tasks": 24
+      }
+    }
+  },
+  "contrasts": {
+    "setup_lift": {
+      "label": "Setup change, same model",
+      "before": {
+        "arm": "A",
+        "label": "base model, no skill",
+        "rate": 1.4,
+        "passed": 1,
+        "trials": 72,
+        "ci95": [
+          0.2,
+          7.5
+        ]
+      },
+      "after": {
+        "arm": "B",
+        "label": "base model, with skill",
+        "rate": 73.6,
+        "passed": 53,
+        "trials": 72,
+        "ci95": [
+          62.4,
+          82.4
+        ]
+      },
+      "tasks_compared": 24,
+      "delta_points": 72.2,
+      "normalized_gain": 73.2,
+      "improved_tasks": 19,
+      "unchanged_tasks": 5,
+      "regressed_tasks": 0,
+      "pass_threshold": 0.5,
+      "trial_level_improved": 21,
+      "trial_level_regressed": 0,
+      "mcnemar_p": 0.0,
+      "power_note": "19 tasks changed direction, enough for a two-sided test to reach significance.",
+      "pairs": [
+        {
+          "task_id": "cloud-spend-audit",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 1,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "credential-store-update",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "design-slop-fix",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "disk-reclaim-report",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "first-comment-link",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "history-rollup-brief",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 2
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "metrics-checkin-note",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "open-artifact-locally",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "outreach-message-draft",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "paired-run-verdict",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "post-draft-and-schedule",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "preview-sheet-html",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 1,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "prior-draft-recall",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "product-page-metadata",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "progress-board-rollup",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "queue-cadence-cap",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 1,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "session-readonly-inspect",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "shipped-render-locate",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "skill-page-qa",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "status-page",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "storyboard-before-render",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "thread-handoff-note",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "token-sync-across-hosts",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "workplan-authoring",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        }
+      ]
+    },
+    "model_lift": {
+      "label": "Model upgrade, same setup",
+      "before": {
+        "arm": "A",
+        "label": "base model, no skill",
+        "rate": 1.4,
+        "passed": 1,
+        "trials": 72,
+        "ci95": [
+          0.2,
+          7.5
+        ]
+      },
+      "after": {
+        "arm": "C",
+        "label": "stronger model, no skill",
+        "rate": 2.8,
+        "passed": 2,
+        "trials": 72,
+        "ci95": [
+          0.8,
+          9.6
+        ]
+      },
+      "tasks_compared": 24,
+      "delta_points": 1.4,
+      "normalized_gain": 1.4,
+      "improved_tasks": 1,
+      "unchanged_tasks": 23,
+      "regressed_tasks": 0,
+      "pass_threshold": 0.5,
+      "trial_level_improved": 1,
+      "trial_level_regressed": 0,
+      "mcnemar_p": 1.0,
+      "power_note": "Only 1 task changed direction. Even if every one of them had moved the same way, the smallest two-sided p this sample can produce is 1.0. Read this as a direction, not as proof.",
+      "pairs": [
+        {
+          "task_id": "cloud-spend-audit",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "credential-store-update",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "design-slop-fix",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "disk-reclaim-report",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "first-comment-link",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "history-rollup-brief",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "metrics-checkin-note",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "open-artifact-locally",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "outreach-message-draft",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "paired-run-verdict",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "post-draft-and-schedule",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "preview-sheet-html",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "prior-draft-recall",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "product-page-metadata",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "progress-board-rollup",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "queue-cadence-cap",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 1,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "session-readonly-inspect",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "shipped-render-locate",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "skill-page-qa",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "status-page",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "storyboard-before-render",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "thread-handoff-note",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "token-sync-across-hosts",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "workplan-authoring",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        }
+      ]
+    },
+    "setup_on_strong": {
+      "label": "Setup change on the stronger model",
+      "before": {
+        "arm": "C",
+        "label": "stronger model, no skill",
+        "rate": 2.8,
+        "passed": 2,
+        "trials": 72,
+        "ci95": [
+          0.8,
+          9.6
+        ]
+      },
+      "after": {
+        "arm": "D",
+        "label": "stronger model, with skill",
+        "rate": 90.3,
+        "passed": 65,
+        "trials": 72,
+        "ci95": [
+          81.3,
+          95.2
+        ]
+      },
+      "tasks_compared": 24,
+      "delta_points": 87.5,
+      "normalized_gain": 90.0,
+      "improved_tasks": 21,
+      "unchanged_tasks": 3,
+      "regressed_tasks": 0,
+      "pass_threshold": 0.5,
+      "trial_level_improved": 22,
+      "trial_level_regressed": 0,
+      "mcnemar_p": 0.0,
+      "power_note": "21 tasks changed direction, enough for a two-sided test to reach significance.",
+      "pairs": [
+        {
+          "task_id": "cloud-spend-audit",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "credential-store-update",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "design-slop-fix",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "disk-reclaim-report",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "first-comment-link",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "history-rollup-brief",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "metrics-checkin-note",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "open-artifact-locally",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "outreach-message-draft",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "paired-run-verdict",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "post-draft-and-schedule",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "preview-sheet-html",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "prior-draft-recall",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "product-page-metadata",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "progress-board-rollup",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "queue-cadence-cap",
+          "before": true,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 2,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "session-readonly-inspect",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "shipped-render-locate",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "skill-page-qa",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "status-page",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "storyboard-before-render",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "thread-handoff-note",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "token-sync-across-hosts",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "workplan-authoring",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        }
+      ]
+    },
+    "stacked": {
+      "label": "Both changes together",
+      "before": {
+        "arm": "A",
+        "label": "base model, no skill",
+        "rate": 1.4,
+        "passed": 1,
+        "trials": 72,
+        "ci95": [
+          0.2,
+          7.5
+        ]
+      },
+      "after": {
+        "arm": "D",
+        "label": "stronger model, with skill",
+        "rate": 90.3,
+        "passed": 65,
+        "trials": 72,
+        "ci95": [
+          81.3,
+          95.2
+        ]
+      },
+      "tasks_compared": 24,
+      "delta_points": 88.9,
+      "normalized_gain": 90.1,
+      "improved_tasks": 22,
+      "unchanged_tasks": 2,
+      "regressed_tasks": 0,
+      "pass_threshold": 0.5,
+      "trial_level_improved": 22,
+      "trial_level_regressed": 0,
+      "mcnemar_p": 0.0,
+      "power_note": "22 tasks changed direction, enough for a two-sided test to reach significance.",
+      "pairs": [
+        {
+          "task_id": "cloud-spend-audit",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "credential-store-update",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "design-slop-fix",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "disk-reclaim-report",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "first-comment-link",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "history-rollup-brief",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "metrics-checkin-note",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "open-artifact-locally",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "outreach-message-draft",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "paired-run-verdict",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "post-draft-and-schedule",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "preview-sheet-html",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "prior-draft-recall",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "product-page-metadata",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "progress-board-rollup",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "queue-cadence-cap",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 1,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "session-readonly-inspect",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "shipped-render-locate",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "skill-page-qa",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "status-page",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "storyboard-before-render",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "thread-handoff-note",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "token-sync-across-hosts",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "workplan-authoring",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        }
+      ]
+    },
+    "skill_vs_model": {
+      "label": "Stronger model alone vs base model with the skill",
+      "before": {
+        "arm": "C",
+        "label": "stronger model, no skill",
+        "rate": 2.8,
+        "passed": 2,
+        "trials": 72,
+        "ci95": [
+          0.8,
+          9.6
+        ]
+      },
+      "after": {
+        "arm": "B",
+        "label": "base model, with skill",
+        "rate": 73.6,
+        "passed": 53,
+        "trials": 72,
+        "ci95": [
+          62.4,
+          82.4
+        ]
+      },
+      "tasks_compared": 24,
+      "delta_points": 70.8,
+      "normalized_gain": 72.9,
+      "improved_tasks": 18,
+      "unchanged_tasks": 6,
+      "regressed_tasks": 0,
+      "pass_threshold": 0.5,
+      "trial_level_improved": 21,
+      "trial_level_regressed": 0,
+      "mcnemar_p": 0.0,
+      "power_note": "18 tasks changed direction, enough for a two-sided test to reach significance.",
+      "pairs": [
+        {
+          "task_id": "cloud-spend-audit",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 1,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "credential-store-update",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "design-slop-fix",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "disk-reclaim-report",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "first-comment-link",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "history-rollup-brief",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 2
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "metrics-checkin-note",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "open-artifact-locally",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": false,
+            "trials_loaded": {
+              "before": 0,
+              "after": 0
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "outreach-message-draft",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "paired-run-verdict",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 0,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "post-draft-and-schedule",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "preview-sheet-html",
+          "before": false,
+          "after": false,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 1,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "prior-draft-recall",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "product-page-metadata",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "progress-board-rollup",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "queue-cadence-cap",
+          "before": true,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 2,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "session-readonly-inspect",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "shipped-render-locate",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "skill-page-qa",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 2,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "status-page",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "storyboard-before-render",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "thread-handoff-note",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "token-sync-across-hosts",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        },
+        {
+          "task_id": "workplan-authoring",
+          "before": false,
+          "after": true,
+          "trials": {
+            "before": {
+              "passed": 0,
+              "total": 3
+            },
+            "after": {
+              "passed": 3,
+              "total": 3
+            }
+          },
+          "invocation": {
+            "eligible": true,
+            "before": false,
+            "after": true,
+            "trials_loaded": {
+              "before": 0,
+              "after": 3
+            }
+          },
+          "valid": true
+        }
+      ]
+    }
+  },
+  "excluded": [],
+  "caveats": [
+    "Every task is drawn from one person's real session logs. n equals one machine, so this measures this setup, not setups in general.",
+    "Prompts are identical across arms and never mention that a skill exists, so the with-skill arms measure discovery and use together, not use alone.",
+    "The verifier is a fixed script that runs against the finished workspace and never sees which arm produced it.",
+    "Each task asserts a house convention that is arbitrary by construction, roughly fourteen checks deep, and nowhere in the prompt. An agent without the skill has no way to guess it, so the no-skill arms sit near zero and the gap measures convention compliance rather than general task ability."
+  ]
+}

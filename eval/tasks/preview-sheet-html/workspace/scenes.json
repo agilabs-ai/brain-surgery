@@ -1,0 +1,36 @@
+{
+  "project": "Halyard explainer, cut 3",
+  "aspect": "16:9",
+  "scenes": [
+    {
+      "id": "sc-01",
+      "title": "The Monday pileup",
+      "duration": 4.5,
+      "voiceover": "Every Monday the same thing happens — six people open the same rota and start editing it."
+    },
+    {
+      "id": "sc-02",
+      "title": "One source of truth",
+      "duration": 5.0,
+      "voiceover": "Halyard keeps one live rota. Everyone sees the same shift, the same minute."
+    },
+    {
+      "id": "sc-03",
+      "title": "Swaps without the group chat",
+      "duration": 5.5,
+      "voiceover": "A swap is two taps — the person picking it up confirms, and the rota updates itself."
+    },
+    {
+      "id": "sc-04",
+      "title": "Costs before you commit",
+      "duration": 4.0,
+      "voiceover": "Overtime shows up while you are still drafting, not three weeks later on the payroll run."
+    },
+    {
+      "id": "sc-05",
+      "title": "Close the week",
+      "duration": 4.5,
+      "voiceover": "Approve the week in one pass — hours, breaks and premiums land in payroll already reconciled."
+    }
+  ]
+}

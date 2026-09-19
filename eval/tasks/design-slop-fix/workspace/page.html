@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tideline Freight</title>
+<style>
+  :root {
+    --ink: #14161a;
+    --muted: #5c626c;
+    --line: #e3e5ea;
+    --accent: #154cff;
+    --bg: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 56px 24px; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 11px;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 14px;
+  }
+
+  h1 { font-size: 44px; line-height: 1.1; margin: 0 0 18px; letter-spacing: -0.01em; }
+  .lede { font-size: 19px; color: var(--muted); margin: 0 0 40px; max-width: 58ch; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+
+  .card-kicker {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 10px;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .card h3 { margin: 0 0 8px; font-size: 18px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  figure { margin: 48px 0 0; }
+  figcaption {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+
+  .stat-label {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .stat-row { display: flex; gap: 48px; margin: 44px 0 0; flex-wrap: wrap; }
+  .stat-value { font-size: 32px; font-weight: 600; }
+
+  footer { margin-top: 64px; border-top: 1px solid var(--line); padding-top: 20px; color: var(--muted); font-size: 14px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <span class="eyebrow">Built for operations teams</span>
+    <h1>Tideline Freight moves your containers before the port does.</h1>
+    <p class="lede">Every carrier, every lane, one booking surface &mdash; no spreadsheets, no phone calls at 3am, no guessing which broker actually has capacity this week.</p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-kicker">Coverage</div>
+        <h3>Forty-one carriers</h3>
+        <p>Live capacity from every carrier we contract with, refreshed on a six minute cycle.</p>
+      </div>
+      <div class="card">
+        <div class="card-kicker">Speed</div>
+        <h3>Booked in ninety seconds</h3>
+        <p>Pick a lane, pick a window, confirm. The paperwork follows you instead of the other way round.</p>
+      </div>
+      <div class="card">
+        <div class="card-kicker">Control</div>
+        <h3>One ledger</h3>
+        <p>Rates, surcharges and demurrage in a single reconciled view your finance team can actually close against.</p>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div>
+        <div class="stat-value">41</div>
+        <div class="stat-label">Contracted carriers</div>
+      </div>
+      <div>
+        <div class="stat-value">6 min</div>
+        <div class="stat-label">Capacity refresh</div>
+      </div>
+      <div>
+        <div class="stat-value">3.2%</div>
+        <div class="stat-label">Average rate delta</div>
+      </div>
+    </div>
+
+    <figure>
+      <img src="board.svg" alt="Booking board" width="832" height="260">
+      <figcaption>The booking board, mid week</figcaption>
+    </figure>
+
+    <footer>
+      Tideline Freight — operations software for people who move physical things. Set the <code>TIDELINE_REGION</code> variable and you are running.
+    </footer>
+  </div>
+</body>
+</html>

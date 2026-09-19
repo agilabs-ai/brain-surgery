@@ -1,0 +1,7 @@
+{
+  "id": "token-sync-across-hosts",
+  "workflow": "other",
+  "skill": "bso-token-handoff",
+  "prompt": "pls bring the agent auth token over to relay-two so the cli there can authenticate. the origin copy is ./origin/agent-auth.json and the host config dir is ./hosts/relay-two/config/. everything is a local offline mirror, stay in this directory and do not go near the network.",
+  "seed": {}
+}

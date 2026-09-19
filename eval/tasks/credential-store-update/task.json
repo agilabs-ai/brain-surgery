@@ -1,0 +1,7 @@
+{
+  "id": "credential-store-update",
+  "workflow": "other",
+  "skill": "bso-credential-record",
+  "prompt": "a new key came in, it is sitting in ./inbox/new-key.txt. put it in the wallet as well pls, no replace. the wallet is ./wallet/. this is an offline fixture, nothing in here is live, stay inside this directory.",
+  "seed": {}
+}

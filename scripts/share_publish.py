@@ -92,6 +92,7 @@ SCHEMAS: dict[str, dict[str, type | tuple[type, ...]]] = {
     "brain-surgery-public/0.4": {
         "state": str, "tasks": int, "before_passes": int, "after_passes": int,
         "unit": str, "before_total": int, "after_total": int,
+        "improved_tasks": int, "unchanged_tasks": int, "regressed_tasks": int,
         "workflows": list, "workflow_count": int, "skills_inspected": int,
         "finding_codes": list, "method_version": str, "model_family": str,
         "change_status": str, "source": str,

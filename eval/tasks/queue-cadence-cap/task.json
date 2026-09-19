@@ -1,0 +1,7 @@
+{
+  "id": "queue-cadence-cap",
+  "workflow": "other",
+  "skill": "bsw-queue-cadence",
+  "prompt": "The approved copy is in approved/metrics-post.md. Put it on the LinkedIn queue in queue.json for the 22nd. Also the queue for that week looks crowded to me, sort it out while you're in there.",
+  "seed": {}
+}

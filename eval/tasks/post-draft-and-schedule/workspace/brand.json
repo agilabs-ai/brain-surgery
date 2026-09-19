@@ -1,0 +1,7 @@
+{
+  "site": "https://toolshelf.example",
+  "pagePattern": "https://toolshelf.example/tools/<id>/",
+  "repoHost": "https://repo.example",
+  "channels": ["linkedin"],
+  "timezone": "UTC"
+}

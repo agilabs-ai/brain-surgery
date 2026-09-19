@@ -1,0 +1,7 @@
+{
+  "id": "metrics-checkin-note",
+  "workflow": "research",
+  "skill": "bsw-metrics-note",
+  "prompt": "can you check in on the numbers, exports are in exports/. where did installs land last week vs the week before? and is the video stuff even being tracked, i'd like to see that. put it in checkin.md",
+  "seed": {}
+}

@@ -1,0 +1,7 @@
+{
+  "id": "paired-run-verdict",
+  "workflow": "research",
+  "skill": "bsr-paired-verdict",
+  "prompt": "Last night's paired run finished, both arms are sitting in runs/. Roll it up into verdict.json, and get the headline number onto page/index.html so it actually shows on the page instead of saying pending.",
+  "seed": {}
+}

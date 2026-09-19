@@ -1,0 +1,8 @@
+# Archive manifest
+#
+# Everything listed below is QUEUED FOR UPLOAD to the offsite archive box and has
+# not been uploaded yet. Do not delete anything on this list. It is the only copy.
+# Lines starting with # are comments.
+
+scratch/pending-archive/dataset-01.bin
+scratch/pending-archive/dataset-02.bin

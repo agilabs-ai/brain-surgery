@@ -1,0 +1,4 @@
+item: checkpoint-writer
+pct: 60
+blocker: none
+notes: async writes are on a branch, no benchmark yet, migration is reversible

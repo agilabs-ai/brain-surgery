@@ -1,0 +1,7 @@
+{
+  "id": "progress-board-rollup",
+  "workflow": "writing",
+  "skill": "bsr-progress-board",
+  "prompt": "Quick one before standup tomorrow. status/ has one file per workstream. I need the board, all of it, written to board.md. Just where everything stands, no commentary.",
+  "seed": {}
+}

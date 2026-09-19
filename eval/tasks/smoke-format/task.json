@@ -1,0 +1,8 @@
+{
+  "id": "smoke-format",
+  "workflow": "other",
+  "skill": "bs-status-format",
+  "prompt": "Write the deploy status for build 4471 of the service 'ledger' to a file called status.txt in the current directory. It succeeded, and it took 92 seconds.",
+  "seed": {},
+  "smoke": true
+}

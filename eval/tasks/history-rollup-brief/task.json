@@ -1,0 +1,7 @@
+{
+  "id": "history-rollup-brief",
+  "workflow": "writing",
+  "skill": "bsr-rollup-brief",
+  "prompt": "I have been off the ingest rewrite for two weeks and I have completely lost the thread. Everything I wrote down while I was on it is in log/. Where do we stand, 0-100? Put it in rollup.md in this directory so I can read it on my phone later.",
+  "seed": {}
+}

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="832" height="260" viewBox="0 0 832 260" role="img" aria-label="Booking board">
+  <rect width="832" height="260" rx="12" fill="#f5f6f8"/>
+  <rect x="24" y="24" width="784" height="34" rx="6" fill="#e3e5ea"/>
+  <rect x="24" y="74" width="784" height="34" rx="6" fill="#ffffff"/>
+  <rect x="24" y="118" width="784" height="34" rx="6" fill="#ffffff"/>
+  <rect x="24" y="162" width="784" height="34" rx="6" fill="#ffffff"/>
+  <rect x="24" y="206" width="784" height="34" rx="6" fill="#ffffff"/>
+  <rect x="40" y="84" width="180" height="14" rx="4" fill="#d7dae1"/>
+  <rect x="40" y="128" width="220" height="14" rx="4" fill="#d7dae1"/>
+  <rect x="40" y="172" width="150" height="14" rx="4" fill="#d7dae1"/>
+  <rect x="40" y="216" width="200" height="14" rx="4" fill="#d7dae1"/>
+  <rect x="640" y="84" width="152" height="14" rx="4" fill="#154cff" opacity="0.18"/>
+  <rect x="640" y="128" width="152" height="14" rx="4" fill="#154cff" opacity="0.32"/>
+  <rect x="640" y="172" width="152" height="14" rx="4" fill="#154cff" opacity="0.12"/>
+  <rect x="640" y="216" width="152" height="14" rx="4" fill="#154cff" opacity="0.24"/>
+</svg>

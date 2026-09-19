@@ -1,0 +1,7 @@
+{
+  "id": "post-draft-and-schedule",
+  "workflow": "writing",
+  "skill": "bsw-social-post-format",
+  "prompt": "Quickstash goes live today. The release note is in notes/quickstash-release.md. Write the LinkedIn post into post.md and get it queued for tomorrow, put the scheduling details in schedule.json so I can see what went in.",
+  "seed": {}
+}

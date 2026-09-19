@@ -1,0 +1,6 @@
+{
+  "id": "open-artifact-locally",
+  "workflow": "writing",
+  "skill": "bsd-durable-artifact-path",
+  "prompt": "tmp/draft-brief.md is the week 4 readout for the steering call. Give me a single-page HTML version of it that I can read in a browser."
+}

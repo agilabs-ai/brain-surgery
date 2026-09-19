@@ -1,0 +1,11 @@
+{
+  "snapshot": "offline-browser-snapshot",
+  "capturedAt": "2026-09-17T09:41:00Z",
+  "note": "Static capture. Nothing here is a live browser.",
+  "tabs": [
+    {"index": 1, "id": "t-1", "title": "Team Inbox", "page": "pages/t-1.html"},
+    {"index": 2, "id": "t-2", "title": "Partner Portal (signed out)", "page": "pages/t-2.html"},
+    {"index": 3, "id": "t-3", "title": "Partner Portal", "page": "pages/t-3.html"},
+    {"index": 4, "id": "t-4", "title": "Release notes 4.2", "page": "pages/t-4.html"}
+  ]
+}
