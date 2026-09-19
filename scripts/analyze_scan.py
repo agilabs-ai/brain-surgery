@@ -218,7 +218,21 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
 
     # 1. Skills the agent tried to load and could not. These are breakages the
     #    user is paying for and cannot see.
+    #
+    #    Re-verified, not just reported. A transcript error is evidence about the
+    #    moment it happened, and setups get fixed: `gmail-operations` and
+    #    `agentwallet-credential-ops` both failed every attempt in the window and
+    #    both resolve on disk today, because the missing symlinks were added after
+    #    those sessions ran. Reporting them as current faults sends the user to fix
+    #    something that is already fixed, which is the fastest way to teach them the
+    #    scan is not worth reading.
+    resolvable = {bare_skill_name(a) for sk in skills for a in (sk.get('aliases') or [])
+                  if a} | installed
+    resolved = []
     for name, count in sorted(failures.items(), key=lambda kv: -kv[1]):
+        if bare_skill_name(name) in resolvable:
+            resolved.append(name)
+            continue
         findings.append({
             'code': 'load_failed',
             'skill': name,
@@ -327,6 +341,9 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
             'confirmed_loads': sum(loads.values()),
             'failed_loads': sum(failures.values()),
         },
+        # Named so the report can say what stopped failing, rather than silently
+        # dropping a finding the user may remember seeing.
+        'resolved_since': sorted(resolved),
         'most_used': [{'skill': n, 'loads': c} for n, c in loads.most_common(10)],
         'findings': findings,
         'coverage': coverage(data),
