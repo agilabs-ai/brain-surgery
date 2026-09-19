@@ -353,7 +353,7 @@ def test_every_finding_code_renders_its_group(scan, out):
     _, public, local, _ = rendered(scan, out)
     for heading in ("Skills that failed when your agent reached for them",
                     "Skills competing for the same trigger",
-                    "Skills loaded from outside the inventory",
+                    "Loaded from somewhere this scan did not look",
                     "Installed and never reached"):
         assert heading in public and heading in local
 

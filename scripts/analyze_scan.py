@@ -37,7 +37,7 @@ CONFIDENCE = {
     'shadowed': 'confirmed',       # two DIFFERENT files on disk today, both readable
     'duplicated': 'observation',   # same bytes twice; nothing behaves differently
     'load_failed': 'suspected',    # an error in a past transcript, not re-tested
-    'inventory_gap': 'suspected',  # may be host-bundled and have no path at all
+    'inventory_gap': 'observation', # it loaded and worked; only our inventory missed it
     'dormant': 'observation',
     'no_evidence': 'observation',
 }
@@ -302,7 +302,33 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
 
     # 3. A skill the transcripts show loading that the inventory never saw. Means
     #    a skill root is missing, so the rest of the scan is under-counting.
-    for name in data.get('inventory_gap', []):
+    # A gap where the load SUCCEEDED is not the user's problem: the skill loaded
+    # and worked. What failed is our inventory, which could not see where it came
+    # from. Over a 90-day window that produced 37 "worth checking" findings on a
+    # real machine, every one a skill that ran fine, mostly plugins installed and
+    # removed inside one week. Churn reported as breakage.
+    #
+    # A gap whose loads errored is a different thing and already has its own code.
+    # So this collapses to one coverage note naming the count, and the names stay
+    # in the evidence for anyone who wants them.
+    gap_names = [n for n in data.get('inventory_gap', []) if not failures.get(n)]
+    if gap_names:
+        findings.append({
+            'code': 'inventory_gap',
+            'skill': None,
+            'title': (f'{len(gap_names)} skills loaded from somewhere this scan did not look'
+                      if len(gap_names) > 1 else
+                      f'{gap_names[0]} loaded from somewhere this scan did not look'),
+            'detail': ('These ran without error, so nothing about them is broken. They just '
+                       'are not in any root that was scanned, which usually means a plugin, '
+                       'a host-bundled skill, or something installed and removed since. It '
+                       'means the counts above are a floor, not that you have a problem.'),
+            'evidence': {'names': sorted(gap_names),
+                         'loads': {n: loads.get(n, 0) for n in sorted(gap_names)}},
+            'fix': ('Nothing, unless you expected to find them locally. Point the scan at the '
+                    'missing root with --skill-root to fold them into the counts.'),
+        })
+    for name in [n for n in data.get('inventory_gap', []) if failures.get(n)]:
         findings.append({
             'code': 'inventory_gap',
             'skill': name,

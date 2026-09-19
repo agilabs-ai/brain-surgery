@@ -45,8 +45,9 @@ GROUPS = {
     "duplicated": ("Stored in two places, identically",
                    "The same skill, byte for byte, in two roots. Nothing is broken: whichever loads, "
                    "you get the same thing. It matters only when you edit one and forget the other."),
-    "inventory_gap": ("Skills loaded from outside the inventory",
-                      "Your agent loaded these from somewhere this scan could not see, so their contents were never checked."),
+    "inventory_gap": ("Loaded from somewhere this scan did not look",
+                      "These ran without error. They are simply not in a root that was scanned, "
+                      "usually a plugin or a host-bundled skill, so the counts above are a floor."),
     "dormant": ("Installed and never reached",
                 "Present on the machine, not loaded once in the scanned window."),
     "no_evidence": ("No sessions were read in this window",
