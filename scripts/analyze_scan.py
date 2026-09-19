@@ -20,7 +20,7 @@ SCHEMA = 'brain-surgery-scan/0.1'
 
 # A finding is only emitted when the transcripts support it. Each carries the
 # evidence that produced it so the report can show its work.
-SEVERITY = {'load_failed': 3, 'shadowed': 2, 'inventory_gap': 2, 'dormant': 1}
+SEVERITY = {'load_failed': 3, 'shadowed': 2, 'inventory_gap': 2, 'duplicated': 1, 'dormant': 1}
 
 #: How much weight a finding can carry, which is a different question from how
 #: alarming it sounds. Ordering the report by severity alone put "163 of your skills
@@ -34,7 +34,8 @@ SEVERITY = {'load_failed': 3, 'shadowed': 2, 'inventory_gap': 2, 'dormant': 1}
 #:   suspected    historical evidence only; the condition may already be gone
 #:   observation  true, and not necessarily anything to fix
 CONFIDENCE = {
-    'shadowed': 'confirmed',       # two files on disk today, both readable now
+    'shadowed': 'confirmed',       # two DIFFERENT files on disk today, both readable
+    'duplicated': 'observation',   # same bytes twice; nothing behaves differently
     'load_failed': 'suspected',    # an error in a past transcript, not re-tested
     'inventory_gap': 'suspected',  # may be host-bundled and have no path at all
     'dormant': 'observation',
@@ -218,7 +219,21 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
 
     # 1. Skills the agent tried to load and could not. These are breakages the
     #    user is paying for and cannot see.
+    #
+    #    Re-verified, not just reported. A transcript error is evidence about the
+    #    moment it happened, and setups get fixed: `gmail-operations` and
+    #    `agentwallet-credential-ops` both failed every attempt in the window and
+    #    both resolve on disk today, because the missing symlinks were added after
+    #    those sessions ran. Reporting them as current faults sends the user to fix
+    #    something that is already fixed, which is the fastest way to teach them the
+    #    scan is not worth reading.
+    resolvable = {bare_skill_name(a) for sk in skills for a in (sk.get('aliases') or [])
+                  if a} | installed
+    resolved = []
     for name, count in sorted(failures.items(), key=lambda kv: -kv[1]):
+        if bare_skill_name(name) in resolvable:
+            resolved.append(name)
+            continue
         findings.append({
             'code': 'load_failed',
             'skill': name,
@@ -241,20 +256,41 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
     #
     #    A canonical skill symlinked into several harness roots is one file seen
     #    from several paths. That is the recommended layout, not a fault.
-    by_name: dict[str, list[str]] = {}
+    by_name: dict[str, list[dict[str, Any]]] = {}
     for s in skills:
-        by_name.setdefault(s['name'], []).append(s.get('path', ''))
-    for name, paths in sorted(by_name.items()):
-        paths = distinct_files(paths)
-        if len(paths) > 1 and not all_namespaced(paths):
-            findings.append({
-                'code': 'shadowed',
-                'skill': name,
-                'title': f'{name} is declared in {len(paths)} places',
-                'detail': 'Two skill files claim the same name. One of them wins and the other '
-                          'never loads. Which one wins is not something you chose.',
-                'evidence': {'paths': sorted(paths)},
-            })
+        by_name.setdefault(s['name'], []).append(s)
+    for name, entries in sorted(by_name.items()):
+        paths = distinct_files([e.get('path', '') for e in entries])
+        if len(paths) < 2 or all_namespaced(paths):
+            continue
+        # Identical copies are not a collision in any sense the user can feel.
+        # Whichever one the host loads, the skill is the same. Every collision on
+        # the first real machine scanned was this: one canonical skill copied,
+        # rather than symlinked, into a second harness root. Reporting that as
+        # something to fix invents work and teaches the reader to ignore the scan.
+        # Every copy must carry a digest. Dropping the ones that do not would leave
+        # a single value behind and read as "identical", downgrading a real
+        # collision on the strength of a field nobody filled in.
+        digests = [e.get('skill_md_sha256') for e in entries]
+        identical = (len(entries) == len(paths)
+                     and all(digests) and len(set(digests)) == 1)
+        findings.append({
+            'code': 'duplicated' if identical else 'shadowed',
+            'skill': name,
+            'title': (f'{name} is stored twice, identically'
+                      if identical else
+                      f'{name} is declared in {len(paths)} places, and they differ'),
+            'detail': ('Both copies are byte-identical, so whichever one loads you get the '
+                       'same skill and nothing is broken today. Worth knowing only because '
+                       'editing one will silently leave the other behind.'
+                       if identical else
+                       'Two different files claim this name. One wins and the other never '
+                       'loads, and which one wins is not something you chose. Compare them '
+                       'and keep one.'),
+            'evidence': {'paths': sorted(paths),
+                         'identical': identical,
+                         'digests': sorted({d for d in digests if d})},
+        })
 
     # 3. A skill the transcripts show loading that the inventory never saw. Means
     #    a skill root is missing, so the rest of the scan is under-counting.
@@ -327,6 +363,9 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
             'confirmed_loads': sum(loads.values()),
             'failed_loads': sum(failures.values()),
         },
+        # Named so the report can say what stopped failing, rather than silently
+        # dropping a finding the user may remember seeing.
+        'resolved_since': sorted(resolved),
         'most_used': [{'skill': n, 'loads': c} for n, c in loads.most_common(10)],
         'findings': findings,
         'coverage': coverage(data),

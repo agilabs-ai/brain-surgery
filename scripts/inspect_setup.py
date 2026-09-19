@@ -34,6 +34,14 @@ MAX_LOG_ROWS = 400000                   # per transcript
 MAX_TOTAL_BYTES = 64 * 1024 * 1024 * 1024
 MAX_SCAN_FILES = 20000
 MAX_INVENTORY = 2000
+#: How recently a skill must have been reached for a missing SKILL.md to be worth
+#: reporting. Beyond this it is a skill the user removed, not a broken reference.
+STALE_GAP_DAYS = 7
+
+#: A Codex skill load: the agent reading `<...>/skills/<name>/SKILL.md` in a shell
+#: command. Anchored on a `skills` path segment so an unrelated SKILL.md, or one
+#: being edited rather than used, is not counted as usage.
+CODEX_SKILL_READ = re.compile(r'skills/(?P<name>[A-Za-z0-9_.-]+)/SKILL\.md')
 
 
 def bounded_files(root: Path, name: str, ceiling: int = MAX_SCAN_FILES):
@@ -84,6 +92,87 @@ def skill_header(text: str) -> dict[str,str]:
     return result
 
 
+#: Where a host agent keeps the executable that bundles its own skills.
+HOST_BINARIES=(Path.home()/'.local/share/claude/versions',)
+
+
+#: Roots under which a session is machine-made, not somebody working. Checked on
+#: the resolved path so a symlinked temp dir cannot slip past.
+TEMP_ROOTS=('/private/tmp/','/tmp/','/var/folders/','/private/var/folders/')
+
+
+def is_harness_session(cwd: str | None, project: Path | None = None) -> bool:
+    """Whether this session is an evaluation run rather than the user's work.
+
+    SKILL.md requires it: "Exclude Brain Surgery/evaluation sessions from
+    normal-usage evidence." It was never implemented, and the cost was 13 of 22
+    findings on a real scan. The grid harness spawns agent children that load its
+    synthetic `bs*` skills, those skills live in `eval/skills/` which is not a
+    scanned root, and every one came back as "loaded but not found on disk". The
+    scan was reporting its own test fixtures as faults in the user's setup.
+
+    Keyed on the working directory, because an eval child runs in a throwaway
+    workspace under the system temp root and a person's real work does not. That
+    also catches any other harness using a temp workspace, without this file
+    needing to know which harness it was.
+    """
+    if not cwd:
+        return False
+    try:
+        resolved=Path(cwd).resolve()
+    except OSError:
+        return False
+    # Scanning a project that happens to live under a temp root is a real thing to
+    # do, and those sessions are in scope by the user's own choice. Only a temp
+    # workspace *outside* what was scanned is machine-made.
+    if project is not None:
+        try:
+            resolved.relative_to(Path(project).resolve())
+            return False
+        except ValueError:
+            pass
+    text=str(resolved)
+    if not text.endswith('/'):
+        text+='/'
+    return text.startswith(TEMP_ROOTS)
+
+
+def host_bundled(names: set[str]) -> set[str]:
+    """Which of these names the host agent ships inside itself.
+
+    A bundled skill loads perfectly and has no SKILL.md anywhere on disk, because
+    it lives in the host executable. The scan saw 19 of those and reported every
+    one as "loaded but was not found on disk", which reads as a fault in the user's
+    setup and is nothing of the kind: `artifact-design`, `artifact-capabilities`
+    and `dataviz` are all shipped by Claude Code itself.
+
+    Detected by searching the host binary rather than by carrying a hard-coded
+    list, so the answer follows the installed version instead of drifting from it.
+    A name is only looked for once, and only when the scan already has a gap to
+    explain, so the binary is read at most once per scan and never for a machine
+    with nothing to check.
+    """
+    if not names:
+        return set()
+    found=set()
+    for root in HOST_BINARIES:
+        if not root.is_dir():continue
+        versions=sorted((p for p in root.iterdir() if p.is_file()),
+                        key=lambda p:p.stat().st_mtime,reverse=True)
+        for binary in versions[:1]:
+            try:
+                blob=binary.read_bytes()
+            except OSError:
+                continue
+            for name in names:
+                # NUL-delimited in the string table, which avoids matching a name
+                # that merely appears inside a longer identifier.
+                if b'\x00'+name.encode()+b'\x00' in blob:
+                    found.add(name)
+            break
+    return found
+
+
 def inventory(roots: list[Path]) -> dict[str,Any]:
     result=[];warnings=[];seen=set()
     for root in roots:
@@ -105,8 +194,22 @@ def inventory(roots: list[Path]) -> dict[str,Any]:
                 continue
             text=p.read_text(encoding='utf-8',errors='replace')
             h=skill_header(text)
+            # Key on the directory name, because that is what the host uses to
+            # address a skill, and record the declared name as an alias.
+            #
+            # These disagree more often than they look like they would: 13 of the
+            # skills on one real machine declare a name different from their
+            # directory. `~/.claude/skills/gstack-browse/SKILL.md` declares
+            # `browse`. The transcript recorded a load of `gstack-browse`, the
+            # inventory held it under `browse`, and the scan reported the same
+            # skill twice: once as loaded-but-missing-from-disk, once as dormant.
+            # One key mismatch, two findings, both wrong.
+            declared=h.get('name')
             result.append({'local_id':hashlib.sha256(str(p.resolve()).encode()).hexdigest()[:16],
-                'name':h.get('name',p.parent.name),'description':h.get('description',''),
+                'name':p.parent.name,
+                'declared_name':declared if declared and declared!=p.parent.name else None,
+                'aliases':sorted({a for a in (declared,p.parent.name) if a}),
+                'description':h.get('description',''),
                 'version':h.get('version'),'edge_id_claim':h.get('edge-id'),'edge_version_claim':h.get('edge-version'),'edge_url_claim':h.get('edge-url'),'path':str(p.resolve()),'skill_md_sha256':file_digest(p),
                 'fingerprint_scope':'SKILL.md only; selected bundles need full manifest at freeze time',
                 'full_content_loaded':False})
@@ -144,7 +247,12 @@ def normalize(rows: list[dict[str,Any]], host: str, source: str) -> dict[str,Any
                     if not isinstance(part,dict):continue
                     if part.get('type')=='tool_use' and str(part.get('name','')).lower()=='skill':
                         args=part.get('input',{})
-                        if isinstance(args,dict):attempts[part.get('id')]= {'name':str(args.get('skill',''))[:120], 'event':i}
+                        # Stamped per attempt, not per session. Attributing a
+                        # session's last activity to every skill it ever touched
+                        # makes a long-running session report every one of them as
+                        # reached "now", which is how a skill last used days ago
+                        # looked current.
+                        if isinstance(args,dict):attempts[part.get('id')]= {'name':str(args.get('skill',''))[:120], 'event':i, 'at':row.get('timestamp')}
                     if part.get('type')=='tool_result' and part.get('tool_use_id') in attempts:
                         attempt=attempts[part['tool_use_id']]
                         # Success omits is_error entirely; only an explicit True is a
@@ -163,11 +271,40 @@ def normalize(rows: list[dict[str,Any]], host: str, source: str) -> dict[str,Any
             if payload.get('type')=='message' and payload.get('role') in {'user','assistant'}:
                 text=content_text(payload.get('content',[]))
                 if text:turns.append({'role':payload['role'],'text':text[:3000],'event':i,'timestamp':row.get('timestamp'),'truncated':len(text)>3000})
+            # Codex has no Skill tool. A skill is loaded by the agent reading its
+            # SKILL.md through the shell, so that read IS the invocation, and
+            # without parsing it the scan reported every Codex skill as dormant:
+            # 214 of 214 on a real machine, which is the false alarm this product
+            # exists to avoid rather than produce.
+            #
+            # Only reads under a directory literally named `skills` count. Matching
+            # any SKILL.md anywhere would count a person editing a skill file, or a
+            # harness reading its own fixtures, as using the skill.
+            if payload.get('type')=='custom_tool_call':
+                blob=str(payload.get('input') or payload.get('arguments') or '')
+                for m in CODEX_SKILL_READ.finditer(blob):
+                    name=m.group('name')
+                    key=f'{i}:{name}'
+                    if key in attempts:continue
+                    attempts[key]={'name':name,'event':i,'at':row.get('timestamp'),
+                        'evidence':'SKILL.md read through the shell, which is how a '
+                                   'Codex skill is loaded'}
+                    # The read completing is the load. There is no separate result
+                    # event to match, so a failed read shows up as a shell error and
+                    # is not claimed either way.
+                    loads.append({**attempts[key],'confirmation_event':i,
+                        'evidence':'SKILL.md read through the shell'})
             if payload.get('type')=='function_call':
                 name=str(payload.get('name','')); args=payload.get('arguments','')
                 if 'skill' in name.lower() or 'SKILL.md' in str(args):
-                    attempts[str(payload.get('call_id',i))]={'name':name,'event':i,'arguments_excerpt':str(args)[:250]}
+                    attempts[str(payload.get('call_id',i))]={'name':name,'event':i,'at':row.get('timestamp'),'arguments_excerpt':str(args)[:250]}
+    # When this session was last active. Without it a skill that ran once weeks ago
+    # and a skill failing right now are indistinguishable, and the scan reported both
+    # as the same finding. Taken from the turns rather than the file's mtime, which
+    # changes for reasons that have nothing to do with the conversation.
+    stamps=[t['timestamp'] for t in turns if t.get('timestamp')]
     return {'source':source,'host':host,'cwd':cwd,'turns':turns,
+        'last_activity':max(stamps) if stamps else None,
         'skill_attempts':list(attempts.values()),'confirmed_skill_loads':loads,
         'failed_skill_loads':failures,
         'invocation_coverage':'partial' if recognized else 'unrecognized',
@@ -263,7 +400,7 @@ def default_log_roots(host: str, project: Path, home: Path, scope: str) -> tuple
 
 def inspect(project: Path, host: str, roots: list[Path], logs: list[Path], days=90, max_sessions=500, explicit=False, scope='project') -> dict[str,Any]:
     project=project.resolve();now=datetime.now(timezone.utc)
-    inv=inventory(roots);sessions=[];warnings=inv['warnings'];budget=0
+    inv=inventory(roots);sessions=[];harness_sessions=[];warnings=inv['warnings'];budget=0
     cutoff=(now-timedelta(days=days)).timestamp()
     candidates=[]
     for root in logs:
@@ -334,15 +471,42 @@ def inspect(project: Path, host: str, roots: list[Path], logs: list[Path], days=
                 item[key]=item.get(key,[])+sub.get(key,[])
             merged+=1
         item['subagent_transcripts_merged']=merged
+        # An evaluation run is not usage. Held aside and counted rather than
+        # dropped silently, so a scan that excluded a lot can say so.
+        if is_harness_session(item.get('cwd'), project):
+            harness_sessions.append(item.get('source'))
+            continue
         sessions.append(item)
     # A skill the agent actually loaded but the inventory never saw means a skill root
     # was missed. Report it; never let the inventory quietly contradict the transcripts.
     # A plugin skill is recorded as `plugin:skill` when it loads and as the bare name
     # in its own SKILL.md, so compare on the bare name or every plugin skill on the
     # machine reads as missing from disk.
-    known={bare_skill_name(s.get('name')) for s in inv['skills'] if s.get('name')}
+    # Match on every name a skill answers to. A skill whose directory and declared
+    # name differ is reachable under the directory name, and looking for only one of
+    # the two reports a skill that is right there as missing from disk.
+    known={bare_skill_name(a) for s in inv['skills'] for a in (s.get('aliases') or [])
+           if a}
     used={a['name'] for x in sessions for a in x['skill_attempts'] if a.get('name')}
     unseen=sorted({bare_skill_name(n) for n in used if n and bare_skill_name(n) not in known})
+    # A skill the host ships inside itself loads perfectly and has no SKILL.md to
+    # find. Reporting that as a gap blames the user for the host's packaging.
+    bundled=sorted(host_bundled(set(unseen)))
+    unseen=[n for n in unseen if n not in bundled]
+    # A gap only matters if the agent is still reaching for it. A skill that ran a
+    # month ago and has not been tried since was removed, which is ordinary churn
+    # and not a fault. The scan's own integration fixture proved the point: it ran
+    # once in a disposable workspace, the workspace was deleted, and it was reported
+    # as a skill missing from disk.
+    recent_cut=(now-timedelta(days=STALE_GAP_DAYS)).isoformat()
+    last_try={}
+    for x in sessions:
+        for a in x.get('skill_attempts',[]):
+            n=bare_skill_name(a.get('name'))
+            stamp=a.get('at')
+            if n and stamp:last_try[n]=max(last_try.get(n,''),stamp)
+    stale=sorted(n for n in unseen if n in last_try and last_try[n] < recent_cut)
+    unseen=[n for n in unseen if n not in stale]
     if unseen:
         warnings.append('Loaded but not inventoried (a skill root is missing from --skill-root): '
                         +', '.join(unseen))
@@ -353,6 +517,8 @@ def inspect(project: Path, host: str, roots: list[Path], logs: list[Path], days=
         warnings.append('No transcripts were read, so nothing here is a measurement. '
                         'This is not evidence that your setup is healthy.')
     return {'schema_version':'brain-surgery-inspection/0.3','created_at':now.isoformat(),
+        'host_bundled':bundled,'stale_gaps':stale,
+        'harness_sessions_excluded':len(harness_sessions),
         'project':str(project),'host':host,'skills':inv['skills'],'sessions':sessions,
         'inventory_gap':unseen,'scope':scope,
         'limits':{'days':days,'max_sessions':max_sessions,'bytes_read':budget},

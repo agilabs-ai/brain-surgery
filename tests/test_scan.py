@@ -13,7 +13,8 @@ import unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'scripts'))
 from inspect_setup import (LEGACY_PER_FILE_CAP, bare_skill_name, default_skill_roots,
-                           inspect, inventory, normalize)
+                           host_bundled, inspect, inventory, is_harness_session,
+                           normalize)
 from analyze_scan import analyze, usage
 
 
@@ -437,3 +438,210 @@ class Buckets(unittest.TestCase):
         hits = [f for f in result['findings'] if f.get('skill') == 'gmail-operations']
         self.assertEqual(len(hits), 1)
         self.assertIn('inventory gap', hits[0]['detail'])
+
+
+class NameKeying(unittest.TestCase):
+    """The host addresses a skill by its directory name; the inventory used to key
+    on the declared one. 13 skills on a real machine declare a different name than
+    their directory, and each produced two false findings from that one mismatch."""
+
+    def write(self, path: Path, declared: str):
+        path.mkdir(parents=True, exist_ok=True)
+        (path / 'SKILL.md').write_text(f'---\nname: {declared}\ndescription: d\n---\n\nbody\n')
+
+    def test_a_skill_is_keyed_on_its_directory_and_answers_to_both_names(self):
+        """`~/.claude/skills/gstack-browse/SKILL.md` declares `browse`. The
+        transcript recorded a load of `gstack-browse`, the inventory held `browse`,
+        and the scan reported the same skill as missing from disk AND as dormant."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self.write(root / 'gstack-browse', 'browse')
+            inv = inventory([root])
+        entry = inv['skills'][0]
+        self.assertEqual(entry['name'], 'gstack-browse')
+        self.assertEqual(entry['declared_name'], 'browse')
+        self.assertEqual(entry['aliases'], ['browse', 'gstack-browse'])
+
+    def test_a_matching_directory_and_declared_name_records_no_alias(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self.write(root / 'pdf', 'pdf')
+            entry = inventory([root])['skills'][0]
+        self.assertEqual(entry['name'], 'pdf')
+        self.assertIsNone(entry['declared_name'])
+        self.assertEqual(entry['aliases'], ['pdf'])
+
+
+class HarnessSessions(unittest.TestCase):
+    """SKILL.md requires excluding evaluation sessions from usage evidence. It was
+    never implemented, and the grid harness's own agent children accounted for 13 of
+    22 findings on a real scan: the scan reported its own fixtures as user faults."""
+
+    def test_a_session_in_a_temp_workspace_is_a_harness_run(self):
+        self.assertTrue(is_harness_session('/private/tmp/claude-501/x/workspace'))
+        self.assertTrue(is_harness_session('/var/folders/nz/abc/T/bs-integration-1'))
+
+    def test_a_session_in_a_real_project_is_not(self):
+        self.assertFalse(is_harness_session('/Users/someone/Projects/thing'))
+        self.assertFalse(is_harness_session(None))
+
+    def test_a_directory_merely_named_tmp_is_not_a_temp_root(self):
+        self.assertFalse(is_harness_session('/Users/someone/tmp/project'))
+
+    def test_inspect_actually_drops_the_harness_session(self):
+        """The helper being correct is not the same as inspect() calling it. The
+        first version of this class tested only the predicate, so deleting the
+        wiring from inspect() broke nothing and the guard pinned nothing.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            project = root / 'proj'
+            (project).mkdir()
+            logs = root / 'logs'
+            logs.mkdir()
+            # One real session in the project, one eval child in a temp workspace
+            # outside it, each loading a different skill.
+            real = [use_row('u1', 'real-skill', cwd=str(project)),
+                    result_row('u1', cwd=str(project))]
+            harness_cwd = '/private/tmp/claude-501/xyz/workspace'
+            fake = [use_row('u2', 'bsr-rollup-brief', cwd=harness_cwd),
+                    result_row('u2', cwd=harness_cwd)]
+            for name, rows in (('real.jsonl', real), ('harness.jsonl', fake)):
+                (logs / name).write_text('\n'.join(json.dumps(r) for r in rows))
+            out = inspect(project, 'claude', [root / 'skills'], [logs],
+                          days=3650, explicit=True, scope='user')
+        self.assertEqual(out['harness_sessions_excluded'], 1)
+        used = {a['name'] for s in out['sessions'] for a in s['skill_attempts']}
+        self.assertIn('real-skill', used)
+        self.assertNotIn('bsr-rollup-brief', used)
+        # And the harness skill must not resurface as a gap, which is exactly how
+        # the fixtures reached the user's report.
+        self.assertNotIn('bsr-rollup-brief', out['inventory_gap'])
+
+    def test_scanning_a_project_under_a_temp_root_still_counts_its_sessions(self):
+        """Scanning a project that happens to live in a temp directory is a real
+        thing to do, and those sessions are in scope by the user's own choice."""
+        self.assertFalse(is_harness_session('/private/tmp/proj/src',
+                                            project=Path('/private/tmp/proj')))
+        self.assertTrue(is_harness_session('/private/tmp/elsewhere/ws',
+                                           project=Path('/private/tmp/proj')))
+
+
+class Reverification(unittest.TestCase):
+    def test_a_failure_that_now_resolves_is_reported_as_resolved_not_as_broken(self):
+        """A transcript error is evidence about the moment it happened. Both
+        gmail-operations and agentwallet-credential-ops failed every attempt in the
+        window and resolve on disk today, because the missing symlinks were added
+        afterwards. Reporting them as current faults sends the user to fix something
+        already fixed."""
+        result = analyze({
+            'schema_version': 'brain-surgery-inspection/0.3',
+            'skills': [{'name': 'gmail-operations', 'path': '/x/gmail-operations/SKILL.md',
+                        'aliases': ['gmail-operations']}],
+            'sessions': [{'skill_attempts': [{'name': 'gmail-operations'}],
+                          'failed_skill_loads': [{'name': 'gmail-operations'}],
+                          'turns': [1]}],
+            'inventory_gap': []})
+        self.assertEqual(result['resolved_since'], ['gmail-operations'])
+        self.assertEqual([f for f in result['findings'] if f['code'] == 'load_failed'], [])
+
+    def test_a_failure_that_still_does_not_resolve_is_still_reported(self):
+        result = analyze({
+            'schema_version': 'brain-surgery-inspection/0.3',
+            'skills': [{'name': 'other', 'path': '/x/other/SKILL.md', 'aliases': ['other']}],
+            'sessions': [{'skill_attempts': [{'name': 'ghost'}],
+                          'failed_skill_loads': [{'name': 'ghost'}], 'turns': [1]}],
+            'inventory_gap': []})
+        self.assertEqual(result['resolved_since'], [])
+        self.assertEqual(len([f for f in result['findings'] if f['code'] == 'load_failed']), 1)
+
+
+class IdenticalCopies(unittest.TestCase):
+    """Every collision on the first real machine scanned was the same skill copied,
+    not symlinked, into a second harness root. Byte-identical, so whichever one the
+    host loads the behaviour is the same. Calling that a defect invents work and
+    teaches the reader to ignore the scan."""
+
+    def run_with(self, digests):
+        return analyze({'schema_version': 'brain-surgery-inspection/0.3',
+                        'skills': [{'name': 'ax-browser-broker', 'aliases': ['ax-browser-broker'],
+                                    'path': f'/root{n}/ax-browser-broker/SKILL.md',
+                                    'skill_md_sha256': d}
+                                   for n, d in enumerate(digests)],
+                        'sessions': [{'turns': [1]}], 'inventory_gap': []})
+
+    def test_identical_copies_are_an_observation_not_a_defect(self):
+        result = self.run_with(['same', 'same'])
+        hit = [f for f in result['findings'] if f['skill'] == 'ax-browser-broker'][0]
+        self.assertEqual(hit['code'], 'duplicated')
+        self.assertEqual(hit['confidence'], 'observation')
+        self.assertTrue(hit['evidence']['identical'])
+
+    def test_copies_that_differ_are_still_a_confirmed_collision(self):
+        """The guard must not swallow the case it was narrowed around: two files
+        that really do differ means one wins and the other never runs."""
+        result = self.run_with(['one', 'other'])
+        hit = [f for f in result['findings'] if f['skill'] == 'ax-browser-broker'][0]
+        self.assertEqual(hit['code'], 'shadowed')
+        self.assertEqual(hit['confidence'], 'confirmed')
+        self.assertFalse(hit['evidence']['identical'])
+
+    def test_a_missing_digest_is_treated_as_differing(self):
+        """Absent evidence must not be read as evidence of sameness, which would
+        downgrade a real collision on the strength of a field nobody filled in."""
+        result = self.run_with(['one', None])
+        hit = [f for f in result['findings'] if f['skill'] == 'ax-browser-broker'][0]
+        self.assertEqual(hit['code'], 'shadowed')
+
+
+class CodexInvocation(unittest.TestCase):
+    """Codex has no Skill tool. A skill is loaded by the agent reading its SKILL.md
+    through the shell, and without parsing that the scan saw zero invocations across
+    78,515 events and reported 214 of 214 skills dormant on a machine where 84 were
+    in active use."""
+
+    def rollout(self, path: Path, commands):
+        rows = []
+        for n, cmd in enumerate(commands):
+            rows.append({'type': 'response_item', 'timestamp': f'2026-09-1{n}T10:00:00Z',
+                         'payload': {'type': 'custom_tool_call', 'name': 'exec',
+                                     'input': cmd}})
+        path.write_text('\n'.join(json.dumps(r) for r in rows))
+
+    def scan(self, commands):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            logs = root / 'logs'
+            logs.mkdir()
+            self.rollout(logs / 'rollout-1.jsonl', commands)
+            return inspect(root / 'proj', 'codex', [root / 'skills'], [logs],
+                           days=3650, explicit=True, scope='user')
+
+    def loaded(self, out):
+        return {a['name'] for s in out['sessions'] for a in s['confirmed_skill_loads']}
+
+    def test_reading_a_skill_file_through_the_shell_counts_as_a_load(self):
+        out = self.scan(['{"cmd":"sed -n 1,240p /Users/x/.codex/skills/workplan/SKILL.md"}'])
+        self.assertEqual(self.loaded(out), {'workplan'})
+
+    def test_a_skill_md_outside_a_skills_directory_is_not_a_load(self):
+        """Matching any SKILL.md anywhere would count somebody editing a file, or a
+        harness reading its own fixtures, as using the skill. That is exactly the
+        bug that put 13 eval fixtures into a user's report."""
+        out = self.scan(['{"cmd":"cat /Users/x/Projects/thing/docs/SKILL.md"}',
+                         '{"cmd":"vim ./SKILL.md"}'])
+        self.assertEqual(self.loaded(out), set())
+
+    def test_the_same_read_twice_in_one_event_is_one_load(self):
+        out = self.scan(['{"cmd":"cat a/skills/wa/SKILL.md a/skills/wa/SKILL.md"}'])
+        self.assertEqual(len([a for s in out['sessions']
+                              for a in s['confirmed_skill_loads']]), 1)
+
+    def test_several_skills_in_one_command_are_all_counted(self):
+        out = self.scan(['{"cmd":"head skills/wa/SKILL.md skills/workplan/SKILL.md"}'])
+        self.assertEqual(self.loaded(out), {'wa', 'workplan'})
+
+    def test_the_load_carries_a_timestamp_so_recency_works(self):
+        out = self.scan(['{"cmd":"cat skills/wa/SKILL.md"}'])
+        attempt = out['sessions'][0]['skill_attempts'][0]
+        self.assertTrue(attempt.get('at'))

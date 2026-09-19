@@ -41,7 +41,10 @@ GROUPS = {
     "load_failed": ("Skills that failed when your agent reached for them",
                     "Your agent tried to use these and got an error back. The work continued without them."),
     "shadowed": ("Skills competing for the same trigger",
-                 "More than one skill claims this work. Which one your agent picks is not something you control."),
+                 "More than one skill claims this work, and the files differ. Which one your agent picks is not something you control."),
+    "duplicated": ("Stored in two places, identically",
+                   "The same skill, byte for byte, in two roots. Nothing is broken: whichever loads, "
+                   "you get the same thing. It matters only when you edit one and forget the other."),
     "inventory_gap": ("Skills loaded from outside the inventory",
                       "Your agent loaded these from somewhere this scan could not see, so their contents were never checked."),
     "dormant": ("Installed and never reached",
@@ -50,7 +53,7 @@ GROUPS = {
                     "Nothing below is a measurement of use. Widen the window or scan a "
                     "project that has transcripts to get one."),
 }
-ORDER = ["shadowed", "load_failed", "inventory_gap", "dormant", "no_evidence"]
+ORDER = ["shadowed", "load_failed", "inventory_gap", "duplicated", "dormant", "no_evidence"]
 
 # What each confidence bucket means to the reader, in their words rather than ours.
 # The scan emits the bucket; this is the only place it is explained.
@@ -64,13 +67,6 @@ BUCKETS = {
                     "True, and not necessarily anything to fix."),
 }
 BUCKET_ORDER = ["confirmed", "suspected", "observation"]
-
-# How many names a whole-setup finding lists inline before it says how many it
-# withheld. The complete list is always in the embedded scan JSON.
-NAME_PREVIEW = 24
-# Where a per-finding detail line is cut on the page. The scan writes prose long
-# enough to be worth clamping; the full text is in the embedded JSON.
-DETAIL_CHARS = 160
 
 # How many names a whole-setup finding lists inline before it says how many it
 # withheld. The complete list is always in the embedded scan JSON.
@@ -178,6 +174,11 @@ li small{color:var(--muted)}
   padding:1px 9px;font-size:12px;font-variant-numeric:tabular-nums;margin-left:6px}
 summary{cursor:pointer;color:var(--muted);font-size:13px;list-style:revert}
 details ul{margin:8px 0 0}
+.bucket{display:inline-block;margin-left:8px;padding:1px 9px;border-radius:99px;
+  font-size:11px;font-weight:600;letter-spacing:.01em;vertical-align:2px;
+  border:1px solid var(--line);color:var(--muted)}
+.b-confirmed{background:var(--blue);border-color:var(--blue);color:#fff}
+.b-suspected{color:var(--ink)}
 .note{border-left:2px solid var(--blue);padding:2px 0 2px 14px;color:var(--muted);font-size:13px;margin:24px 0}
 footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -232,8 +233,15 @@ def groups_html(raw: dict[str, Any], local: bool) -> str:
         else:
             body = '<p class="sub" style="margin:0">%d skill%s affected. Names stay on the scanned machine.</p>' % (
                 affected, "" if affected == 1 else "s")
-        out.append('<div class="group"><h2>%s<span class="count">%d</span></h2><p>%s</p>%s</div>'
-                   % (html.escape(title), affected, html.escape(detail), body))
+        # The bucket on the group, so a reader scanning headings can tell what is
+        # reproducible now from what is a lead, without reading every finding.
+        bucket = next((f.get("confidence") for f in items if f.get("confidence")), None)
+        chip = ''
+        if bucket in BUCKETS:
+            label, _ = BUCKETS[bucket]
+            chip = '<span class="bucket b-%s">%s</span>' % (bucket, html.escape(label))
+        out.append('<div class="group"><h2>%s<span class="count">%d</span>%s</h2><p>%s</p>%s</div>'
+                   % (html.escape(title), affected, chip, html.escape(detail), body))
     return "".join(out)
 
 
