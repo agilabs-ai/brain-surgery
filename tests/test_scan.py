@@ -1038,3 +1038,12 @@ class SkillSubtreesAreNotMoreSkills(unittest.TestCase):
             inv = inventory([root])
         self.assertEqual(sorted(s['name'] for s in inv['skills']),
                          sorted([Path(d).name, 'nested']))
+
+
+class RootsAreDeduplicated(unittest.TestCase):
+    def test_scanning_the_home_directory_does_not_double_a_root(self):
+        """`--project /root` on a server makes the project-local and user-level
+        roots the same path. Every missing-root warning printed twice, and a skill
+        found there would have been inventoried twice."""
+        roots = [str(p) for p in default_skill_roots(Path('/home/u'), Path('/home/u'), 'auto')]
+        self.assertEqual(len(roots), len(set(roots)), roots)
