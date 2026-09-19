@@ -63,8 +63,16 @@ def one_run(task: dict, harness: str, candidate: bool, dry: bool) -> dict:
         return {'harness': harness, 'arm': arm, 'dry_run': True,
                 'workspace': str(workspace), 'request': request}
 
-    rq = workspace / '_request.json'
-    rs = workspace / '_response.json'
+    # Outside the workspace, because the verifier reads the workspace. Written
+    # inside, the harness's own files became part of the evidence: the response
+    # JSON happened to contain the digits the procedure indicator looks for, so
+    # that check passed in the baseline arm, which has no procedure at all. A
+    # harness contaminating its own measurement is the exact fault this fixture
+    # exists to catch elsewhere.
+    side = workspace.parent / (workspace.name + '-io')
+    side.mkdir(exist_ok=True)
+    rq = side / 'request.json'
+    rs = side / 'response.json'
     rq.write_text(json.dumps(request, indent=1))
     subprocess.run([sys.executable, str(ADAPTERS[harness]),
                     '--request', str(rq), '--response', str(rs)],
