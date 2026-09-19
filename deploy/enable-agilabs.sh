@@ -44,13 +44,15 @@ else
 fi
 
 ln -sfn /etc/nginx/sites-available/agilabs-cc-http /etc/nginx/sites-enabled/agilabs-cc-http
-nginx -t && systemctl reload nginx
+if ! nginx -t; then echo "nginx config rejected, nothing reloaded"; exit 1; fi
+systemctl reload nginx
 
 certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" -d "www.$DOMAIN" \
   --non-interactive --agree-tos -m fede@floom.dev
 
 ln -sfn /etc/nginx/sites-available/agilabs-cc /etc/nginx/sites-enabled/agilabs-cc
-nginx -t && systemctl reload nginx
+if ! nginx -t; then echo "nginx config rejected, nothing reloaded"; exit 1; fi
+systemctl reload nginx
 
 echo
 echo "https://$DOMAIN is live behind basic auth (user: $AUTH_USER)."
