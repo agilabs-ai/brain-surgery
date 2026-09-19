@@ -50,7 +50,27 @@ GROUPS = {
                     "Nothing below is a measurement of use. Widen the window or scan a "
                     "project that has transcripts to get one."),
 }
-ORDER = ["load_failed", "shadowed", "inventory_gap", "dormant", "no_evidence"]
+ORDER = ["shadowed", "load_failed", "inventory_gap", "dormant", "no_evidence"]
+
+# What each confidence bucket means to the reader, in their words rather than ours.
+# The scan emits the bucket; this is the only place it is explained.
+BUCKETS = {
+    "confirmed": ("Confirmed",
+                  "Reproducible on your machine right now. Open the paths and see it."),
+    "suspected": ("Worth checking",
+                  "Evidence from your past sessions. The condition may already be gone, "
+                  "so each of these needs one look before it is worth acting on."),
+    "observation": ("For context",
+                    "True, and not necessarily anything to fix."),
+}
+BUCKET_ORDER = ["confirmed", "suspected", "observation"]
+
+# How many names a whole-setup finding lists inline before it says how many it
+# withheld. The complete list is always in the embedded scan JSON.
+NAME_PREVIEW = 24
+# Where a per-finding detail line is cut on the page. The scan writes prose long
+# enough to be worth clamping; the full text is in the embedded JSON.
+DETAIL_CHARS = 160
 
 # How many names a whole-setup finding lists inline before it says how many it
 # withheld. The complete list is always in the embedded scan JSON.
@@ -252,16 +272,41 @@ def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
                .replace("&", "\\u0026").replace("<", "\\u003c"))
     data_id = "local-data" if local else "summary-data"
 
+    # Counted from findings rather than from the dormancy number. Leading with
+    # "163 of 203 skills were never used" told a reader their setup was 80% broken
+    # when most of those skills are for work they do not do. A fresh machine with
+    # five cleanly installed skills produced that finding and nothing else.
+    confirmed = [f for f in raw.get("findings", []) if f.get("confidence") == "confirmed"]
+    suspected = [f for f in raw.get("findings", []) if f.get("confidence") == "suspected"]
+
     if s["measured"]:
-        headline = "%s installed. Your agent reached %d." % (
-            plural(s["installed"], "skill"), s["reached"])
+        if confirmed:
+            headline = "%s to fix in your setup." % plural(len(confirmed), "thing")
+            lead = ("Each one is reproducible on your machine right now, and each has a "
+                    "path you can open.")
+            big, unit, of = len(confirmed), "", "confirmed"
+        elif suspected:
+            headline = "Nothing confirmed broken. %s worth checking." % plural(
+                len(suspected), "thing")
+            lead = ("These come from your past sessions, so the condition may already be "
+                    "gone. Each needs one look before it is worth acting on.")
+            big, unit, of = len(suspected), "", "worth checking"
+        else:
+            # A clean scan is an honest result, not a failure to find something.
+            headline = "Nothing broken in your setup."
+            lead = ("No name collisions, no failed loads, nothing missing from disk. "
+                    "That is the finding, not an absence of one.")
+            big, unit, of = 0, "", "confirmed"
         coverage_line = "Read from %s turn%s across %s, last %s." % (
             f"{s['turns_analyzed']:,}", "" if s["turns_analyzed"] == 1 else "s",
             plural(s["sessions_analyzed"], "session"), plural(s["window_days"], "day"))
-        hero = f"""<section class="hero"><div class="big">{s['dormant_percent']}<small>%</small></div>
-<p class="of">of installed capability was never loaded in this window.</p>
+        # Dormancy moves into the strip below, where it reads as context. As the
+        # hero number it told a reader with five clean skills that 80% of their
+        # setup was dormant, which is true and is not a problem.
+        hero = f"""<section class="hero"><div class="big">{big}<small>{unit}</small></div>
+<p class="of">{html.escape(lead)}</p>
 <div class="bar"><i style="width:{reach_pct}%"></i></div>
-<p class="of" style="margin:10px 0 0;font-size:13px">{reach_pct}% reached &middot; {s['confirmed_loads']} confirmed loads from {s['load_attempts']} attempts</p></section>"""
+<p class="of" style="margin:10px 0 0;font-size:13px">{s['reached']} of {s['installed']} skills reached in this window &middot; {s['confirmed_loads']} loads from {s['load_attempts']} attempts</p></section>"""
     else:
         # No dormancy headline, no bar, no percentage. Nothing was measured, and
         # a zero here would read as a finding rather than an absence.
