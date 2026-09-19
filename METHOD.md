@@ -90,6 +90,49 @@ known way.
   claim of statistical significance. Small samples are small; the report does not dress them
   up.
 
+## A pass is two questions, and they are scored apart
+
+A task's checks do not all ask the same kind of thing. Some ask whether the job was done:
+did the agent produce the right answer, keep the data intact, leave the thing working. Others
+ask whether the output matches a local rule that exists only in the setup: an exact filename,
+a fixed field name, a required artifact the request never mentions.
+
+Scoring those together as one pass/fail bit makes the measurement useless, and it did.
+
+The `disk-reclaim-report` task asks for a scratch directory to be cleaned without touching
+what is queued for the archive. Its verifier checks four things. The archive survived and
+real space came back: both are in the prompt, in those words. A file named exactly
+`reclaim-report.md` exists, and it accounts for every candidate with its size and a
+`keep`/`remove` verdict: neither is anywhere in the prompt. An agent that cleaned the
+directory correctly, preserved the archive, and did not invent a document nobody asked for
+scored **zero**, the same as an agent that deleted the only copy of the archive.
+
+Repeated across the corpus, that is why a no-skill arm measured near zero, and why a naive
+reading of the gap credited the setup with capability it did not supply.
+
+So every check now carries a class:
+
+- **outcome** — passable by a competent agent that has never seen the setup, using only the
+  request and the workspace. The request asked for it, or it is plain correctness or safety.
+- **convention** — knowable only from the setup. A house filename, a field vocabulary, a
+  required section, a format string.
+
+Each arm reports a rate for each class, as a task-macro average over the tasks that carry
+checks of that class. A task asserting no convention contributes nothing to the convention
+rate rather than scoring zero on it, because a check nobody wrote is not a check an arm
+failed. Where no task has been graded for a class, the rate is `null`, never `0`.
+
+Both numbers are real and both are reported. The outcome rate is the fair fight and is the
+only one that supports a claim about capability. The convention rate is where a setup
+legitimately dominates, and it is worth measuring precisely because convention misses are
+real rework for the user. What is not allowed is multiplying them into a single number and
+describing the result as what the setup is worth.
+
+The classification is a judgment, it is made by us, and it is visible: every check names its
+class in the verifier source, with a comment giving the reason. A reader who disagrees with
+a call can find it and argue with it. That is the point of writing it down rather than
+leaving it implicit in a threshold.
+
 ## Invocation is measured separately from quality
 
 Whether the agent *reached* a skill is a different question from whether the skill *helped*,
@@ -143,6 +186,15 @@ approves it. Original production logs stay local. (See `references/RESULT_FORMAT
   relabeling of a past laboratory test as a new production result.
 - It does not turn preference ratings into a pass rate. The metric is task pass rate under a
   predeclared criterion, not a leaderboard.
+- **It does not read a convention gap as a capability gap.** Where a corpus withholds a house
+  rule from the prompt, the arm without the setup cannot pass the checks that test that rule,
+  and the resulting gap measures what was withheld rather than what the agent could do. Every
+  check is classed `outcome` or `convention` and the two rates are reported apart, so the
+  single headline cannot be read as capability when it is mostly compliance.
+- **It does not state a ratio that rests on one event.** A cost-per-passing-run multiplier
+  computed against an arm that passed once is a number one trial wide; on the first grid its
+  95% bounds ran from roughly 10x to 370x. Findings of that shape are stated as the counts
+  actually observed, not as the ratio between them.
 
 ## Reproducing a report
 

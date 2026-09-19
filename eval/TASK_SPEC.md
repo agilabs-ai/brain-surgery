@@ -23,15 +23,43 @@ eval/skills/<skill-name>/SKILL.md     the candidate skill the task is testing
 }
 ```
 
-## The one rule that makes the measurement honest
+## Scope of this document
 
-**The prompt must never mention the convention the verifier checks, and must never
-hint that a skill exists.** It is written exactly as the user would type it on a
-normal day. If the prompt says "keep it under 170 words", the task measures
+**This spec governs the legacy discovery corpus in `eval/tasks/` only. It is not the
+specification for generated customer cases, and its central rule below must not be
+carried into one.** See `references/DECISION_PLAN.md` for the rules a generated
+performance case has to satisfy.
+
+The distinction matters because the two ask different questions. This corpus asks
+"does the agent find and apply a convention nobody told it about", which requires
+withholding the convention. A customer performance case asks "does the proposed
+change make the agent better at the customer's own work", which requires the
+opposite: the request and its permitted context must establish what success needs,
+and the candidate changes how the agent gets there, not what the grader secretly
+wants.
+
+## The rule this corpus is built on, and its cost
+
+**In this corpus the prompt never mentions the convention the verifier checks, and
+never hints that a skill exists.** It is written exactly as the user would type it on
+a normal day. If the prompt says "keep it under 170 words", the task measures
 instruction-following, which every arm passes, and the result is noise.
 
 The with-skill arms therefore measure discovery and use together. That is the
-intended measurement. Say it out loud rather than engineering around it.
+intended measurement here. Say it out loud rather than engineering around it.
+
+**What it costs, stated because it was not stated before.** A task built this way
+cannot be passed without the skill, by construction. So the gap it measures is
+convention discovery and compliance, not general capability, and reporting it as the
+latter is how this corpus produced +72.2pp against SkillsBench's +16.2pp average.
+Classify every check `outcome` or `convention` (see `checklib.py`) and report the two
+apart, so the headline cannot be read as capability when it is mostly compliance.
+
+**Not every convention is an exclusion.** A format the user actually required is a
+legitimate success criterion and belongs in `outcome`. The line is *user-required
+outcome* against *evidence that our mechanism activated*, not outcome against
+formatting. A check that only proves the skill fired is an invocation indicator and
+is reported beside the score, never inside it.
 
 ## What makes a good verifier
 

@@ -150,8 +150,6 @@ def headline(raw: dict[str, Any]) -> tuple[str, str]:
     hero = cs[HERO_CONTRAST]
     setup = hero['delta_points']
     before, after = hero['before'], hero['after']
-    cost = raw.get('cost') or {}
-    cb, ca = cost.get(before['arm']) or {}, cost.get(after['arm']) or {}
 
     # The headline has to be the claim the hero figure actually supports. The
     # brain draws one model with the skill out of reach and the same model with
@@ -167,21 +165,24 @@ def headline(raw: dict[str, Any]) -> tuple[str, str]:
         return (('Reaching the skill changed nothing.' if setup == 0 else
                  f'The same model scored {signed(setup)} points with the skill in reach.'), sub)
 
-    # Tokens per run barely move between the arms, so the spend is not where the
-    # difference lives and the headline must not pretend otherwise. What moves is
-    # how much of that identical spend comes back as work that passes.
+    # A score before and a score after, and nothing else in the sentence.
     #
-    # Stated as counts, not as the ratio between them. The tempting headline is
-    # the cost-per-passing-run multiplier, but the losing arm passed once in 72,
-    # so that multiplier is one trial wide: its Wilson bounds run from about 10x
-    # to about 370x. A number that precise resting on n=1 is the exact move this
-    # page spends six sections telling the reader not to trust. The counts are
-    # the same finding and they are what was actually observed.
-    if cb.get('billed_per_run') and ca.get('billed_per_run'):
-        return (f'Same tokens in. {after["passed"]} usable runs out, '
-                f'instead of {before["passed"]}.', sub)
-    return (f'The skill took the same model from {pct(before["rate"])}% '
-            f'to {pct(after["rate"])}%.', sub)
+    # Earlier drafts led on the cost ratio, then on the cross-corner against a
+    # better model. Both are true and both are further down the page, but both
+    # are answers to questions a reader has not asked yet. The first thing
+    # somebody needs is the gap between what their setup does now and what the
+    # same setup does wired correctly, because that is the only part that is
+    # about them. Which model beats which is a comparison; this is a score.
+    #
+    # Rounded the same way the brain gauge rounds, so the headline and the
+    # figure under it cannot print two different numbers for one measurement.
+    # Names what the corpus measures, which is convention discovery and compliance,
+    # not capability. An earlier version of this line read "X% to Y%, with nothing
+    # new installed", which is the overclaim that produced +72.2pp against
+    # SkillsBench's +16.2pp average. See eval/TASK_SPEC.md on why every task here is
+    # unpassable without the skill by construction.
+    return (f'{pct(before["rate"])}% to {pct(after["rate"])}% at following a '
+            f'convention nobody stated.', sub)
 
 
 def fmt_p(p: float | None) -> str:
@@ -382,6 +383,54 @@ def cross_callout(raw: dict[str, Any]) -> str:
   <p class="callout-note">{esc(strength_line(c))} This holds on tasks that turn on a stated
   house convention. It is not a claim that the smaller model is the better model, and a reader
   who takes it that way has been misled by this page rather than by the data.</p>
+</section>'''
+
+
+def scan_section(scan: dict[str, Any] | None) -> str:
+    """The reader's own machine, between the result and the explanation for it.
+
+    Everything above this point is one setup measured under laboratory control,
+    and a reader is entitled to treat it as somebody else's number. This is the
+    section that makes it theirs: the same distinction the grid manipulated by
+    hand, installed against reached, counted on a real machine where nobody was
+    holding anything fixed.
+
+    It is a count, never a projection. The grid's pass rates are not restated
+    here and no rate is applied to the dormant skills, because nothing was
+    evaluated on this machine and an estimate in this position would read as a
+    measurement taken two sections after a real one.
+    """
+    if not scan:
+        return ''
+    t = scan.get('totals') or {}
+    installed, reached = t.get('installed'), t.get('reached')
+    if not installed or reached is None:
+        return ''
+    failed = [f for f in scan.get('findings', []) if f.get('code') == 'load_failed']
+    # Each failure carries its own attempt count, so the sentence reports the
+    # number of times a load was tried and lost rather than the number of names.
+    attempts = sum((f.get('evidence') or {}).get('failed', 0) for f in failed)
+    named = ', '.join(esc(f['skill']) for f in failed[:3] if f.get('skill'))
+    broke = ''
+    if failed and attempts:
+        broke = (f'<p class="callout-note">{attempts} of those loads were attempted and returned '
+                 f'an error: {named}. The work carried on without them every time, and nothing '
+                 f'in the session said so.</p>')
+    return f'''<section class="chart-block" aria-labelledby="scan-title">
+  <header class="block-head">
+    <p class="kicker">The same distinction, on a real machine</p>
+    <h2 id="scan-title">Installed is not reached, and nothing tells you which is which.</h2>
+    <p class="lede">The grid above separates those two states deliberately, one arm each. This is
+    what the split looks like where no one is arranging it: a scan of one working machine's own
+    sessions, counting only what the transcripts show.</p>
+  </header>
+  <div class="hero-meta" style="margin-top:0;border-top:0;padding-top:0">
+    <span><b>{installed:,}</b> skills installed</span>
+    <span><b>{reached:,}</b> the agent actually reached</span>
+    <span><b>{t.get('dormant', 0):,}</b> never loaded once</span>
+    <span><b>{t.get('failed_loads', 0):,}</b> loads returned an error</span>
+  </div>
+  {broke}
 </section>'''
 
 
@@ -632,11 +681,24 @@ def method_section(raw: dict[str, Any]) -> str:
 # page
 # --------------------------------------------------------------------------
 
-def report_html(raw: dict[str, Any]) -> str:
+def report_html(raw: dict[str, Any], scan: dict[str, Any] | None = None) -> str:
     h1, _ = headline(raw)
     demo = bool(raw.get('example'))
-    badge = ('<div class="demo-banner">Design preview. Illustrative results. '
-             'Nothing was audited or uploaded.</div>' if demo else '')
+    # A retired result must say so on the page, not only in the JSON. This corpus is
+    # 25 synthetic skills on synthetic workspaces, and every task withholds the
+    # convention it checks, so the gap measures convention discovery rather than
+    # capability. The banner travels with the file; a caveat that only exists in the
+    # repository does not reach whoever opens the HTML.
+    retired = any('RETIRED' in str(c) for c in (raw.get('caveats') or []))
+    badge = ''
+    if demo:
+        badge = ('<div class="demo-banner">Design preview. Illustrative results. '
+                 'Nothing was audited or uploaded.</div>')
+    elif retired:
+        badge = ('<div class="demo-banner">Retired as evidence about any setup. '
+                 'Every skill here is synthetic and every task withholds the convention '
+                 'it checks, so this measures convention discovery, not capability. '
+                 'Kept as a harness and mechanism test.</div>')
     payload = json.dumps(raw, ensure_ascii=False, separators=(',', ':')) \
         .replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
 
@@ -660,11 +722,12 @@ def report_html(raw: dict[str, Any]) -> str:
 </nav>
 <main>
 {hero_section(raw)}
-{cost_section(raw)}
-{chart_section('arms', 'All four conditions',
-               'Two models, with and without the skill.',
+{scan_section(scan)}
+{chart_section('arms', 'The obvious objection',
+               'Would a better model have done this instead?',
                'One bar per model. The solid part is the rate without the skill, the pale part is '
-               'what the skill added, and the grey tail is what neither reached.',
+               'what the skill added, and the grey tail is what neither reached. The two upgrades '
+               'are not the same size, and the one you can buy is the smaller one.',
                'arms')}
 {cross_callout(raw)}
 {chart_section('grid', 'The interaction',
@@ -672,6 +735,7 @@ def report_html(raw: dict[str, Any]) -> str:
                'Moving across adds the skill. Moving down upgrades the model. The two do not '
                'behave the same way, which is the finding.',
                'interaction')}
+{cost_section(raw)}
 {chart_section('tasks', 'The sample, in full',
                'Every task, every trial, every condition.',
                'Small samples are easy to over-read, so the whole thing is here to be counted '
@@ -730,13 +794,29 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--input', required=True, type=Path)
     p.add_argument('--out', required=True, type=Path)
+    p.add_argument('--scan', type=Path,
+                   help='optional findings.json from analyze_scan.py; adds the section that '
+                        'counts installed against reached on a real machine')
     a = p.parse_args()
     try:
         raw = validate(json.loads(a.input.read_text()))
     except (OSError, ValueError, TypeError, KeyError) as e:
         p.exit(2, f'Render failed: {e}\n')
+    scan = None
+    if a.scan:
+        # A malformed or wrong-schema scan drops the section rather than taking
+        # the page down: the grid result is complete on its own, and the reader
+        # is better served by a report missing one section than by no report.
+        try:
+            candidate = json.loads(a.scan.read_text())
+            if str(candidate.get('schema_version', '')).startswith('brain-surgery-scan/'):
+                scan = candidate
+            else:
+                print(f'Ignoring --scan: not a scan file ({a.scan})', file=sys.stderr)
+        except (OSError, ValueError) as e:
+            print(f'Ignoring --scan: {e}', file=sys.stderr)
     a.out.parent.mkdir(parents=True, exist_ok=True)
-    a.out.write_text(report_html(raw), encoding='utf-8')
+    a.out.write_text(report_html(raw, scan), encoding='utf-8')
     print(f'Wrote {a.out} ({a.out.stat().st_size // 1024} KB). No upload, no live setup changes.')
 
 
