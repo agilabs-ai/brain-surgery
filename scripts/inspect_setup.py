@@ -38,6 +38,11 @@ MAX_INVENTORY = 2000
 #: reporting. Beyond this it is a skill the user removed, not a broken reference.
 STALE_GAP_DAYS = 7
 
+#: A Codex skill load: the agent reading `<...>/skills/<name>/SKILL.md` in a shell
+#: command. Anchored on a `skills` path segment so an unrelated SKILL.md, or one
+#: being edited rather than used, is not counted as usage.
+CODEX_SKILL_READ = re.compile(r'skills/(?P<name>[A-Za-z0-9_.-]+)/SKILL\.md')
+
 
 def bounded_files(root: Path, name: str, ceiling: int = MAX_SCAN_FILES):
     """Walk a root and yield matching files, following symlinks under guard.
@@ -266,6 +271,29 @@ def normalize(rows: list[dict[str,Any]], host: str, source: str) -> dict[str,Any
             if payload.get('type')=='message' and payload.get('role') in {'user','assistant'}:
                 text=content_text(payload.get('content',[]))
                 if text:turns.append({'role':payload['role'],'text':text[:3000],'event':i,'timestamp':row.get('timestamp'),'truncated':len(text)>3000})
+            # Codex has no Skill tool. A skill is loaded by the agent reading its
+            # SKILL.md through the shell, so that read IS the invocation, and
+            # without parsing it the scan reported every Codex skill as dormant:
+            # 214 of 214 on a real machine, which is the false alarm this product
+            # exists to avoid rather than produce.
+            #
+            # Only reads under a directory literally named `skills` count. Matching
+            # any SKILL.md anywhere would count a person editing a skill file, or a
+            # harness reading its own fixtures, as using the skill.
+            if payload.get('type')=='custom_tool_call':
+                blob=str(payload.get('input') or payload.get('arguments') or '')
+                for m in CODEX_SKILL_READ.finditer(blob):
+                    name=m.group('name')
+                    key=f'{i}:{name}'
+                    if key in attempts:continue
+                    attempts[key]={'name':name,'event':i,'at':row.get('timestamp'),
+                        'evidence':'SKILL.md read through the shell, which is how a '
+                                   'Codex skill is loaded'}
+                    # The read completing is the load. There is no separate result
+                    # event to match, so a failed read shows up as a shell error and
+                    # is not claimed either way.
+                    loads.append({**attempts[key],'confirmation_event':i,
+                        'evidence':'SKILL.md read through the shell'})
             if payload.get('type')=='function_call':
                 name=str(payload.get('name','')); args=payload.get('arguments','')
                 if 'skill' in name.lower() or 'SKILL.md' in str(args):

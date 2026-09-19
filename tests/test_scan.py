@@ -592,3 +592,56 @@ class IdenticalCopies(unittest.TestCase):
         result = self.run_with(['one', None])
         hit = [f for f in result['findings'] if f['skill'] == 'ax-browser-broker'][0]
         self.assertEqual(hit['code'], 'shadowed')
+
+
+class CodexInvocation(unittest.TestCase):
+    """Codex has no Skill tool. A skill is loaded by the agent reading its SKILL.md
+    through the shell, and without parsing that the scan saw zero invocations across
+    78,515 events and reported 214 of 214 skills dormant on a machine where 84 were
+    in active use."""
+
+    def rollout(self, path: Path, commands):
+        rows = []
+        for n, cmd in enumerate(commands):
+            rows.append({'type': 'response_item', 'timestamp': f'2026-09-1{n}T10:00:00Z',
+                         'payload': {'type': 'custom_tool_call', 'name': 'exec',
+                                     'input': cmd}})
+        path.write_text('\n'.join(json.dumps(r) for r in rows))
+
+    def scan(self, commands):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            logs = root / 'logs'
+            logs.mkdir()
+            self.rollout(logs / 'rollout-1.jsonl', commands)
+            return inspect(root / 'proj', 'codex', [root / 'skills'], [logs],
+                           days=3650, explicit=True, scope='user')
+
+    def loaded(self, out):
+        return {a['name'] for s in out['sessions'] for a in s['confirmed_skill_loads']}
+
+    def test_reading_a_skill_file_through_the_shell_counts_as_a_load(self):
+        out = self.scan(['{"cmd":"sed -n 1,240p /Users/x/.codex/skills/workplan/SKILL.md"}'])
+        self.assertEqual(self.loaded(out), {'workplan'})
+
+    def test_a_skill_md_outside_a_skills_directory_is_not_a_load(self):
+        """Matching any SKILL.md anywhere would count somebody editing a file, or a
+        harness reading its own fixtures, as using the skill. That is exactly the
+        bug that put 13 eval fixtures into a user's report."""
+        out = self.scan(['{"cmd":"cat /Users/x/Projects/thing/docs/SKILL.md"}',
+                         '{"cmd":"vim ./SKILL.md"}'])
+        self.assertEqual(self.loaded(out), set())
+
+    def test_the_same_read_twice_in_one_event_is_one_load(self):
+        out = self.scan(['{"cmd":"cat a/skills/wa/SKILL.md a/skills/wa/SKILL.md"}'])
+        self.assertEqual(len([a for s in out['sessions']
+                              for a in s['confirmed_skill_loads']]), 1)
+
+    def test_several_skills_in_one_command_are_all_counted(self):
+        out = self.scan(['{"cmd":"head skills/wa/SKILL.md skills/workplan/SKILL.md"}'])
+        self.assertEqual(self.loaded(out), {'wa', 'workplan'})
+
+    def test_the_load_carries_a_timestamp_so_recency_works(self):
+        out = self.scan(['{"cmd":"cat skills/wa/SKILL.md"}'])
+        attempt = out['sessions'][0]['skill_attempts'][0]
+        self.assertTrue(attempt.get('at'))
