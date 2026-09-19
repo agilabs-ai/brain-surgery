@@ -497,3 +497,20 @@ def test_a_genuinely_clean_page_still_says_so_plainly(scan, out):
     scan["totals"]["failed_loads"] = 0
     _, _, local, _ = rendered(scan, out)
     assert "No name collisions, no failed loads" in local
+
+
+def test_excluded_evaluation_sessions_are_declared_on_the_page(scan, out):
+    """60 sessions were excluded on a real machine and the report said nothing.
+    Evidence removed on purpose still has to be declared, or a reader comparing
+    the session count against what they know they ran concludes the scan missed
+    them."""
+    scan["coverage"]["harness_sessions_excluded"] = 60
+    _, public, local, _ = rendered(scan, out)
+    assert "60 sessions excluded as evaluation runs" in local
+    assert "60 sessions excluded as evaluation runs" in public
+
+
+def test_nothing_excluded_means_no_sentence_about_it(scan, out):
+    scan["coverage"]["harness_sessions_excluded"] = 0
+    _, _, local, _ = rendered(scan, out)
+    assert "excluded as evaluation runs" not in local

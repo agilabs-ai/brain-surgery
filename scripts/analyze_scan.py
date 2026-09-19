@@ -119,8 +119,14 @@ def scan_limits(data: dict[str, Any]) -> dict[str, Any]:
 def coverage(data: dict[str, Any]) -> dict[str, Any]:
     sessions = data.get('sessions', [])
     kinds = Counter(s.get('invocation_coverage') for s in sessions)
+    # Evidence removed on purpose still has to be declared. 60 sessions were
+    # excluded on one real machine, and a reader comparing "286 sessions read"
+    # against what they know they ran deserves to see where the rest went rather
+    # than concluding the scan missed them.
+    excluded = int(data.get('harness_sessions_excluded') or 0)
     return {
         'sessions_analyzed': len(sessions),
+        'harness_sessions_excluded': excluded,
         'turns_analyzed': sum(len(s.get('turns', [])) for s in sessions),
         'window_days': data.get('limits', {}).get('days'),
         'session_cap': data.get('limits', {}).get('max_sessions'),
@@ -129,7 +135,10 @@ def coverage(data: dict[str, Any]) -> dict[str, Any]:
         'absence_is_not_zero': True,
         'caveat': ('Counts cover the sessions read in this scan, not your whole history. '
                    'A skill with no recorded load was not reached in this window; '
-                   'that is not proof it was never useful.'),
+                   'that is not proof it was never useful.'
+                   + ('' if not excluded else
+                      ' %d evaluation session%s excluded, because a benchmark run is not '
+                      'you using your setup.' % (excluded, ' was' if excluded == 1 else 's were'))),
     }
 
 

@@ -50,6 +50,37 @@ CODEX_SKILL_READ = re.compile(r'skills/(?P<name>[A-Za-z0-9_.-]+)/SKILL\.md')
 unreadable: list[str] = []
 
 
+#: Row shapes only one host writes. Codex wraps everything in `payload`; Claude
+#: puts the turn in `message`. Either alone is weak, so both are counted and the
+#: larger pile wins.
+CODEX_MARKERS = {'session_meta', 'response_item', 'event_msg', 'turn_context'}
+
+
+def detect_host(rows: list[Any]) -> str:
+    """Which agent wrote this transcript.
+
+    The first version looked for a single `session_meta` row in the first 20 lines
+    and assumed Claude otherwise. A Codex rollout without that marker near the top,
+    a fragment or a resumed session, was then parsed with Claude rules, and every
+    skill load in it was lost in silence. On a machine running both agents that
+    quietly halves the evidence.
+
+    Counting shapes instead of trusting one marker. A file that looks like neither
+    is called Claude, because that host is the more common default and normalize()
+    reports `invocation_coverage: unrecognized` for it either way, so the guess is
+    visible in the output rather than buried.
+    """
+    codex = claude = 0
+    for row in rows[:400]:
+        if not isinstance(row, dict):
+            continue
+        if row.get('type') in CODEX_MARKERS or isinstance(row.get('payload'), dict):
+            codex += 1
+        elif isinstance(row.get('message'), dict):
+            claude += 1
+    return 'codex' if codex > claude else 'claude'
+
+
 def bounded_files(root: Path, name: str, ceiling: int = MAX_SCAN_FILES):
     """Walk a root and yield matching files, following symlinks under guard.
 
@@ -485,7 +516,7 @@ def inspect(project: Path, host: str, roots: list[Path], logs: list[Path], days=
             bad+=oversized
         detected=host
         if detected=='auto':
-            detected='codex' if any(isinstance(r,dict) and r.get('type')=='session_meta' for r in rows[:20]) else 'claude'
+            detected=detect_host(rows)
         item=normalize(rows,detected,str(path.resolve()))
         if scope=='project' and item['cwd'] and Path(item['cwd']).resolve()!=project:continue
         if not item['cwd'] and not explicit:

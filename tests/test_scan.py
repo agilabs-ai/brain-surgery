@@ -13,8 +13,8 @@ import unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'scripts'))
 from inspect_setup import (LEGACY_PER_FILE_CAP, bare_skill_name, default_skill_roots,
-                           host_bundled, inspect, inventory, is_harness_session,
-                           normalize)
+                           detect_host, host_bundled, inspect, inventory,
+                           is_harness_session, normalize)
 from analyze_scan import analyze, usage
 
 
@@ -774,3 +774,53 @@ class MalformedFinding(unittest.TestCase):
         self.assertEqual(hit['confidence'], 'confirmed')
         self.assertIn('name: broken', hit['fix'])
         self.assertIn('/x/broken/SKILL.md', hit['fix'])
+
+
+class HostDetection(unittest.TestCase):
+    """`--host auto` on a machine running both agents. The first version looked for
+    one `session_meta` row in the first 20 lines and assumed Claude otherwise, so a
+    Codex rollout without that marker near the top was parsed with Claude rules and
+    every skill load in it was lost in silence."""
+
+    def test_a_codex_rollout_without_session_meta_is_still_codex(self):
+        rows = [{'type': 'response_item', 'payload': {'type': 'custom_tool_call'}}] * 5
+        self.assertEqual(detect_host(rows), 'codex')
+
+    def test_a_claude_transcript_is_claude(self):
+        self.assertEqual(detect_host([{'type': 'assistant', 'message': {'content': []}}] * 5),
+                         'claude')
+
+    def test_a_majority_decides_rather_than_a_single_marker(self):
+        rows = [{'type': 'assistant', 'message': {}}] * 9 + [{'type': 'session_meta'}]
+        self.assertEqual(detect_host(rows), 'claude')
+
+    def test_an_unrecognisable_file_does_not_crash(self):
+        for rows in ([], [1, 'x', None], [{'nothing': 'useful'}]):
+            self.assertIn(detect_host(rows), ('claude', 'codex'))
+
+    def test_auto_reads_a_codex_load_that_claude_rules_would_miss(self):
+        """End to end: the same mixed log directory under --host auto must surface
+        the Codex skill read, not just the Claude one."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            skills, logs = root / 'skills', root / 'logs'
+            (skills / 'ok').mkdir(parents=True)
+            (skills / 'ok' / 'SKILL.md').write_text('---\nname: ok\ndescription: d\n---\n')
+            (skills / 'cx').mkdir(parents=True)
+            (skills / 'cx' / 'SKILL.md').write_text('---\nname: cx\ndescription: d\n---\n')
+            logs.mkdir()
+            (logs / 'claude.jsonl').write_text('\n'.join(json.dumps(r) for r in [
+                {'type': 'assistant', 'cwd': str(root), 'timestamp': '2026-09-18T10:00:00Z',
+                 'message': {'role': 'assistant', 'content': [
+                     {'type': 'tool_use', 'id': 'u1', 'name': 'Skill', 'input': {'skill': 'ok'}}]}},
+                {'type': 'user', 'cwd': str(root), 'timestamp': '2026-09-18T10:00:00Z',
+                 'message': {'role': 'user', 'content': [
+                     {'type': 'tool_result', 'tool_use_id': 'u1', 'content': 'loaded'}]}}]))
+            (logs / 'codex.jsonl').write_text(json.dumps(
+                {'type': 'response_item', 'timestamp': '2026-09-18T11:00:00Z',
+                 'payload': {'type': 'custom_tool_call', 'name': 'exec',
+                             'input': '{"cmd":"cat skills/cx/SKILL.md"}'}}))
+            out = inspect(root, 'auto', [skills], [logs], days=365,
+                          explicit=True, scope='user')
+        loaded = {a['name'] for s in out['sessions'] for a in s['confirmed_skill_loads']}
+        self.assertEqual(loaded, {'ok', 'cx'})
