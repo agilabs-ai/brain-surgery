@@ -270,7 +270,9 @@ def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
     stats = [
         (s["installed"], one(s["installed"], "skill installed", "skills installed")),
         (s["reached"], "reached in this window"),
-        (s["failed_loads"], one(s["failed_loads"], "load returned an error", "loads returned an error")),
+        (s["failed_loads"], one(s["failed_loads"], "load returned an error", "loads returned an error")
+         + (", since resolved" if raw.get("resolved_since") and not any(
+             f.get("code") == "load_failed" for f in raw.get("findings", [])) else "")),
         (s["sessions_analyzed"], one(s["sessions_analyzed"], "session read", "sessions read")),
     ]
     stat_html = "".join('<div class="stat"><b>%s</b><span>%s</span></div>' % (f"{n:,}", html.escape(l))
@@ -317,8 +319,18 @@ def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
         else:
             # A clean scan is an honest result, not a failure to find something.
             headline = "Nothing broken in your setup."
-            lead = ("No name collisions, no failed loads, nothing missing from disk. "
-                    "That is the finding, not an absence of one.")
+            resolved = raw.get("resolved_since") or []
+            if resolved:
+                # Without this the page contradicted itself: the hero said "no
+                # failed loads" while the strip beneath it counted four. They are
+                # both true, and only saying one of them reads as a mistake.
+                lead = ("Nothing to fix today. %s failed in earlier sessions and %s "
+                        "now: %s." % (plural(len(resolved), "skill"),
+                                      "loads" if len(resolved) == 1 else "load",
+                                      ", ".join(sorted(resolved))))
+            else:
+                lead = ("No name collisions, no failed loads, nothing missing from disk. "
+                        "That is the finding, not an absence of one.")
             big, unit, of = 0, "", "confirmed"
         coverage_line = "Read from %s turn%s across %s, last %s." % (
             f"{s['turns_analyzed']:,}", "" if s["turns_analyzed"] == 1 else "s",
