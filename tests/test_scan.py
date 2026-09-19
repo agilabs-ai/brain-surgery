@@ -320,3 +320,120 @@ class InventoryRoots(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main(verbosity=2)
+
+
+class Precision(unittest.TestCase):
+    """Rules that stop the scan reporting a correct setup as broken.
+
+    Each pins a false positive found by running the checks against real trees. A
+    diagnostic that cries wolf on a stranger's machine is worse than one that says
+    nothing, because the first costs them time before they learn to ignore it.
+    """
+
+    def skill(self, path: Path, name: str):
+        path.mkdir(parents=True, exist_ok=True)
+        (path / 'SKILL.md').write_text(f'---\nname: {name}\ndescription: d\n---\n\nbody\n')
+
+    def analyze_with(self, skills):
+        return analyze({'schema_version': 'brain-surgery-inspection/0.3',
+                        'skills': skills, 'sessions': [{'turns': [1]}],
+                        'inventory_gap': []})
+
+    def codes(self, result, code):
+        return [f for f in result['findings'] if f['code'] == code]
+
+    def test_one_skill_symlinked_into_several_roots_is_not_a_collision(self):
+        """The recommended layout is one canonical copy linked into each harness
+        root. Reporting it as a name collision tells the user their correct setup
+        is broken."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self.skill(root / '.agents/skills/wa', 'wa')
+            (root / '.claude/skills').mkdir(parents=True)
+            (root / '.claude/skills/wa').symlink_to(root / '.agents/skills/wa')
+            paths = [str(root / '.agents/skills/wa/SKILL.md'),
+                     str(root / '.claude/skills/wa/SKILL.md')]
+            result = self.analyze_with([{'name': 'wa', 'path': p} for p in paths])
+        self.assertEqual(self.codes(result, 'shadowed'), [])
+
+    def test_the_same_bare_name_in_different_plugins_is_not_a_collision(self):
+        """Plugin skills load as `plugin:skill`. On a real marketplace cache
+        `access` appeared in imessage, telegram and discord: three namespaced
+        skills, none shadowing another."""
+        paths = [f'/h/.claude/plugins/marketplaces/m/plugins/{p}/skills/access/SKILL.md'
+                 for p in ('imessage', 'telegram', 'discord')]
+        result = self.analyze_with([{'name': 'access', 'path': p} for p in paths])
+        self.assertEqual(self.codes(result, 'shadowed'), [])
+
+    def test_two_real_files_in_plain_roots_are_still_a_collision(self):
+        """The guard must not swallow the true positive it was narrowed around."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self.skill(root / 'a/use-tinyfish', 'use-tinyfish')
+            self.skill(root / 'b/use-tinyfish', 'use-tinyfish')
+            paths = [str(root / 'a/use-tinyfish/SKILL.md'),
+                     str(root / 'b/use-tinyfish/SKILL.md')]
+            result = self.analyze_with([{'name': 'use-tinyfish', 'path': p} for p in paths])
+        self.assertEqual(len(self.codes(result, 'shadowed')), 1)
+
+    def test_two_copies_inside_one_plugin_are_still_a_collision(self):
+        base = '/h/.claude/plugins/marketplaces/m/plugins/one/skills'
+        result = self.analyze_with([{'name': 'x', 'path': f'{base}/x/SKILL.md'},
+                                    {'name': 'x', 'path': f'{base}/nested/x/SKILL.md'}])
+        self.assertEqual(len(self.codes(result, 'shadowed')), 1)
+
+
+class Buckets(unittest.TestCase):
+    def test_a_confirmed_defect_outranks_a_higher_severity_suspected_one(self):
+        """The ordering rule, tested where severity and confidence disagree.
+
+        `load_failed` carries higher severity than `shadowed` and sounds worse, but
+        it rests on an error in a past transcript that was never re-tested, while a
+        collision is two files readable on disk right now. The reader can act on one
+        today and can only guess about the other, so confidence leads.
+
+        The first version of this test compared shadowed against dormant, where
+        severity already gives the right answer, so it passed with the bucket rule
+        deleted and pinned nothing.
+        """
+        result = analyze({'schema_version': 'brain-surgery-inspection/0.3',
+                          'skills': [{'name': 'a', 'path': '/x/a/SKILL.md'},
+                                     {'name': 'a', 'path': '/y/a/SKILL.md'}],
+                          'sessions': [{'skill_attempts': [{'name': 'broken'}],
+                                        'failed_skill_loads': [{'name': 'broken'}],
+                                        'turns': [1]}],
+                          'inventory_gap': []})
+        order = [(f['code'], f['confidence']) for f in result['findings']]
+        self.assertEqual(order[0], ('shadowed', 'confirmed'))
+        self.assertIn(('load_failed', 'suspected'), order)
+        self.assertLess(order.index(('shadowed', 'confirmed')),
+                        order.index(('load_failed', 'suspected')))
+
+    def test_dormancy_never_outranks_a_confirmed_defect(self):
+        """Ordering by severity alone led the report with "163 of your skills were
+        never used", which is not a defect. A fresh machine with five cleanly
+        installed skills produced that finding and nothing else, which would have
+        told a new user their setup was 80% broken when nothing was wrong."""
+        result = analyze({'schema_version': 'brain-surgery-inspection/0.3',
+                          'skills': [{'name': 'a', 'path': '/x/a/SKILL.md'},
+                                     {'name': 'a', 'path': '/y/a/SKILL.md'},
+                                     {'name': 'b', 'path': '/x/b/SKILL.md'}],
+                          'sessions': [{'turns': [1]}], 'inventory_gap': []})
+        self.assertEqual(result['findings'][0]['code'], 'shadowed')
+        self.assertEqual(result['findings'][0]['confidence'], 'confirmed')
+        dormant = [f for f in result['findings'] if f['code'] == 'dormant'][0]
+        self.assertEqual(dormant['confidence'], 'observation')
+
+    def test_one_root_cause_is_counted_once(self):
+        """gmail-operations appeared twice on a real scan, as a failed load and as
+        an inventory gap. One missing symlink, two symptoms. A defect count built
+        by adding findings overstates the work."""
+        result = analyze({'schema_version': 'brain-surgery-inspection/0.3',
+                          'skills': [{'name': 'other', 'path': '/x/other/SKILL.md'}],
+                          'sessions': [{'skill_attempts': [{'name': 'gmail-operations'}],
+                                        'failed_skill_loads': [{'name': 'gmail-operations'}],
+                                        'turns': [1]}],
+                          'inventory_gap': ['gmail-operations']})
+        hits = [f for f in result['findings'] if f.get('skill') == 'gmail-operations']
+        self.assertEqual(len(hits), 1)
+        self.assertIn('inventory gap', hits[0]['detail'])

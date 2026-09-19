@@ -9,7 +9,7 @@ The scan answers one question: of the capability installed on this machine,
 how much does the agent actually reach, and what is quietly broken?
 """
 from __future__ import annotations
-import argparse, json, sys
+import argparse, json, os, sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -21,6 +21,26 @@ SCHEMA = 'brain-surgery-scan/0.1'
 # A finding is only emitted when the transcripts support it. Each carries the
 # evidence that produced it so the report can show its work.
 SEVERITY = {'load_failed': 3, 'shadowed': 2, 'inventory_gap': 2, 'dormant': 1}
+
+#: How much weight a finding can carry, which is a different question from how
+#: alarming it sounds. Ordering the report by severity alone put "163 of your skills
+#: were never used" at the top, and dormancy is not a defect: most of those skills
+#: are for work the user does not do, and installing something you never need is not
+#: a fault. A fresh machine with five cleanly installed skills produced exactly one
+#: finding, that one, which would have told a new user their setup was 80% broken
+#: when nothing was wrong with it at all.
+#:
+#:   confirmed    reproducible by inspection right now
+#:   suspected    historical evidence only; the condition may already be gone
+#:   observation  true, and not necessarily anything to fix
+CONFIDENCE = {
+    'shadowed': 'confirmed',       # two files on disk today, both readable now
+    'load_failed': 'suspected',    # an error in a past transcript, not re-tested
+    'inventory_gap': 'suspected',  # may be host-bundled and have no path at all
+    'dormant': 'observation',
+    'no_evidence': 'observation',
+}
+BUCKET_ORDER = {'confirmed': 3, 'suspected': 2, 'observation': 1}
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -110,6 +130,76 @@ def coverage(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def distinct_files(paths: list[str]) -> list[str]:
+    """Collapse paths that resolve to one file.
+
+    `~/.agents/skills/x/SKILL.md` and `~/.claude/skills/x/SKILL.md` are usually the
+    same file: one canonical copy, symlinked into each harness root, which is the
+    layout the docs recommend. Reporting that as a name collision tells a user their
+    correct setup is broken.
+    """
+    seen, out = set(), []
+    for path in sorted(p for p in paths if p):
+        try:
+            real = os.path.realpath(path)
+        except OSError:
+            real = path
+        if real in seen:
+            continue
+        seen.add(real)
+        out.append(path)
+    return out
+
+
+def all_namespaced(paths: list[str]) -> bool:
+    """True when every copy lives inside a distinct plugin.
+
+    Plugin skills load under `plugin:skill`, so they do not compete for a trigger
+    even when their bare names match. Only a name claimed twice within one plugin,
+    or once in a plugin and once in a plain skill root, can actually shadow.
+    """
+    owners = set()
+    for path in paths:
+        parts = Path(path).parts
+        if 'plugins' not in parts:
+            return False
+        index = len(parts) - 1 - parts[::-1].index('plugins')
+        owners.add('/'.join(parts[:index + 2]))
+    return len(owners) == len(paths)
+
+
+def deduplicate(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse findings that share one root cause.
+
+    `gmail-operations` appeared twice on a real scan: once as a skill whose every
+    load attempt errored, and once as a skill absent from the inventory. Those are
+    one fault, a missing symlink, counted twice, and a defect count built by adding
+    findings together overstates the work by however many symptoms each cause
+    happens to produce.
+
+    Keeps the finding with the highest confidence and records what merged into it,
+    so nothing is hidden, only counted once.
+    """
+    by_skill: dict[str, list[dict[str, Any]]] = {}
+    out: list[dict[str, Any]] = []
+    for f in findings:
+        name = f.get('skill')
+        if name:
+            by_skill.setdefault(name, []).append(f)
+        else:
+            out.append(f)
+    for name, group in by_skill.items():
+        group.sort(key=lambda f: -BUCKET_ORDER.get(f.get('confidence', 'observation'), 0))
+        primary = dict(group[0])
+        if len(group) > 1:
+            primary['also_reported_as'] = [g['code'] for g in group[1:]]
+            primary['detail'] += (
+                ' The same underlying fault also shows up as %s, counted once here.'
+                % ' and '.join(g['code'].replace('_', ' ') for g in group[1:]))
+        out.append(primary)
+    return out
+
+
 def analyze(data: dict[str, Any]) -> dict[str, Any]:
     skills = [s for s in data.get('skills', []) if s.get('name')]
     sessions = data.get('sessions', [])
@@ -141,11 +231,22 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
 
     # 2. Two skill directories declaring the same name. One silently shadows the
     #    other and which one wins is not something the user chose.
+    #
+    #    Two ways this over-reports, both found by running it against real trees:
+    #
+    #    A plugin skill loads as `plugin:skill`, so the same bare name in three
+    #    different plugins is three namespaced skills, not a collision. On a real
+    #    marketplace cache, `access` and `configure` each appeared three times,
+    #    across imessage, telegram and discord. Neither shadows anything.
+    #
+    #    A canonical skill symlinked into several harness roots is one file seen
+    #    from several paths. That is the recommended layout, not a fault.
     by_name: dict[str, list[str]] = {}
     for s in skills:
         by_name.setdefault(s['name'], []).append(s.get('path', ''))
     for name, paths in sorted(by_name.items()):
-        if len(paths) > 1:
+        paths = distinct_files(paths)
+        if len(paths) > 1 and not all_namespaced(paths):
             findings.append({
                 'code': 'shadowed',
                 'skill': name,
@@ -194,7 +295,15 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
             'evidence': {'installed': len(installed), 'sessions_analyzed': len(sessions)},
         })
 
-    findings.sort(key=lambda f: -SEVERITY.get(f['code'], 0))
+    for f in findings:
+        f['confidence'] = CONFIDENCE.get(f['code'], 'observation')
+
+    findings = deduplicate(findings)
+    # Bucket first, severity second. A confirmed collision outranks a suspected load
+    # failure even though the failure sounds worse, because the reader can act on one
+    # of them today and can only guess about the other.
+    findings.sort(key=lambda f: (-BUCKET_ORDER.get(f['confidence'], 0),
+                                 -SEVERITY.get(f['code'], 0)))
 
     return {
         'schema_version': SCHEMA,
