@@ -281,10 +281,14 @@ def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
     ]
     stat_html = "".join('<div class="stat"><b>%s</b><span>%s</span></div>' % (f"{n:,}", html.escape(l))
                         for n, l in stats)
+    excluded = int((raw.get("coverage") or {}).get("harness_sessions_excluded") or 0)
     caveat = ("Counts cover the %s read in this scan, not your whole history. "
               "A skill with no recorded load was not reached in this window; that is not "
               "proof it is never used. Nothing was executed, uploaded, or changed."
               % plural(s["sessions_analyzed"], "session"))
+    if excluded:
+        caveat += (" %s excluded as evaluation runs, because a benchmark is not you using "
+                   "your setup." % plural(excluded, "session"))
     evidence = ""
     if local:
         top = raw.get("most_used", [])[:8]
