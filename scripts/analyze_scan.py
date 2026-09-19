@@ -14,6 +14,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from inspect_setup import bare_skill_name
+
 SCHEMA = 'brain-surgery-scan/0.1'
 
 # A finding is only emitted when the transcripts support it. Each carries the
@@ -33,6 +35,10 @@ def usage(sessions: list[dict[str, Any]]) -> tuple[Counter, Counter, Counter]:
 
     Failures are only those the transcript flagged as errors. An attempt with no
     matched result is left out of both: a truncated trace is not a failure.
+
+    Keyed on the bare skill name. A plugin skill appears in a transcript as
+    `plugin:skill` and in its own SKILL.md as `skill`; counting the two separately
+    splits one skill's usage across two keys and leaves the installed half at zero.
     """
     attempts: Counter = Counter()
     loads: Counter = Counter()
@@ -42,8 +48,9 @@ def usage(sessions: list[dict[str, Any]]) -> tuple[Counter, Counter, Counter]:
                           ('confirmed_skill_loads', loads),
                           ('failed_skill_loads', failures)):
             for event in session.get(key, []):
-                if event.get('name'):
-                    sink[event['name']] += 1
+                name = bare_skill_name(event.get('name'))
+                if name:
+                    sink[name] += 1
     return attempts, loads, failures
 
 
@@ -155,8 +162,10 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
             'code': 'inventory_gap',
             'skill': name,
             'title': f'{name} loaded but was not found on disk',
-            'detail': 'This skill ran but lives outside the scanned roots, so the counts below '
-                      'are a floor, not a ceiling.',
+            'detail': 'This skill ran but no scanned root holds its SKILL.md. Either it ships '
+                      'inside the host agent itself and has no path to find, or it has been '
+                      'moved or removed since it last ran. Only the second is something to '
+                      'fix; either way the counts below are a floor, not a ceiling.',
             'evidence': {'confirmed_loads': loads.get(name, 0)},
         })
 
