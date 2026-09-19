@@ -169,11 +169,17 @@ def headline(raw: dict[str, Any]) -> tuple[str, str]:
 
     # Tokens per run barely move between the arms, so the spend is not where the
     # difference lives and the headline must not pretend otherwise. What moves is
-    # the share of that identical spend that comes back as work which passes.
-    if cb.get('billed_per_pass') and ca.get('billed_per_pass'):
-        ratio = cb['billed_per_pass'] / ca['billed_per_pass']
-        if ratio >= 2:
-            return (f'Same tokens in. {ratio:.0f} times as much usable work out.', sub)
+    # how much of that identical spend comes back as work that passes.
+    #
+    # Stated as counts, not as the ratio between them. The tempting headline is
+    # the cost-per-passing-run multiplier, but the losing arm passed once in 72,
+    # so that multiplier is one trial wide: its Wilson bounds run from about 10x
+    # to about 370x. A number that precise resting on n=1 is the exact move this
+    # page spends six sections telling the reader not to trust. The counts are
+    # the same finding and they are what was actually observed.
+    if cb.get('billed_per_run') and ca.get('billed_per_run'):
+        return (f'Same tokens in. {after["passed"]} usable runs out, '
+                f'instead of {before["passed"]}.', sub)
     return (f'The skill took the same model from {pct(before["rate"])}% '
             f'to {pct(after["rate"])}%.', sub)
 
@@ -205,10 +211,46 @@ def verdict_line(raw: dict[str, Any]) -> str:
     lost = sum(1 for p in pairs if not p.get('before') and p.get('after'))
     total = c['tasks_compared']
     if c['delta_points'] <= 0 or not lost:
-        return ('Keep the setup under review. On these tasks it did not earn its place, '
-                'and the honest read is that nothing here justifies the maintenance.')
+        return ('Go and check your own setup anyway. On this machine the skills did not earn '
+                'their place on these tasks, and that is only knowable by counting.')
+    # Addressed to whoever was sent the link, not to the owner of the machine
+    # being measured. A reader cannot act on "keep the setup"; it is not theirs.
+    # What they can act on is the one thing this run found that they can look for
+    # in their own transcripts tonight.
+    broken = load_failure_line(raw)
+    if broken:
+        return ('Go and check whether your own skills actually load. On this machine one of them '
+                'was in reach for every trial of its task and the agent opened it in none of them. '
+                'That task failed every time, and nothing about the setup looked wrong until '
+                'something counted.')
     return (f'Keep the setup. Take it away and {lost} of {total} of these tasks stop passing '
             f'their checks, on the same model, with the same prompts.')
+
+
+def load_failure_line(raw: dict[str, Any]) -> str:
+    """The skill that was installed, was in reach, and never loaded.
+
+    This is the finding the page exists to deliver and it was buried in the last
+    table. A skill that sits in the directory and is never opened looks exactly
+    like a skill that works, from every angle except a run that counts. It is
+    read from each run's own transcript, so it is an observation and not an
+    inference about why the task failed.
+    """
+    c = raw['contrasts'][HERO_CONTRAST]
+    index = raw.get('tasks_index') or {}
+    pairs = c.get('pairs') or []
+    dead = [p for p in pairs if (p.get('invocation') or {}).get('trials_loaded', {}).get('after') == 0]
+    if not dead:
+        return ''
+    trials = raw['grid']['trials_per_task']
+    p = dead[0]
+    skill = (index.get(p['task_id']) or {}).get('skill') or 'one installed skill'
+    lead = (f'{len(dead)} of the installed skills were in reach and never loaded once'
+            if len(dead) > 1 else
+            f'One installed skill was in reach and never loaded once')
+    return (f'{lead}. {skill} was available for all {trials} trials of {p["task_id"]} and the '
+            f'agent opened it in none of them. That task failed every trial. An installed skill '
+            f'that is never read looks identical to one that works, right up until something counts.')
 
 
 def never_passed_line(raw: dict[str, Any]) -> str:
@@ -219,13 +261,19 @@ def never_passed_line(raw: dict[str, Any]) -> str:
     cheapest credibility on the page.
     """
     c = raw['contrasts'][HERO_CONTRAST]
+    trials = raw['grid']['trials_per_task']
+    # A task whose skill never loaded is already accounted for one line above, and
+    # it is a different failure: the skill was never consulted. Repeating it here
+    # would make two findings look like one and pad the count.
     zero = [p['task_id'] for p in (c.get('pairs') or [])
-            if p.get('trials', {}).get('after', {}).get('passed') == 0]
+            if p.get('trials', {}).get('after', {}).get('passed') == 0
+            and (p.get('invocation') or {}).get('trials_loaded', {}).get('after') == trials]
     if not zero:
         return ''
     names = ', '.join(zero[:-1]) + ' and ' + zero[-1] if len(zero) > 1 else zero[0]
-    return (f'{len(zero)} of {c["tasks_compared"]} tasks never passed a single trial even with the '
-            f'skill in reach: {names}. The setup did not rescue everything.')
+    verb = 'were' if len(zero) > 1 else 'was'
+    return (f'{names} {verb} worse: the skill loaded on every trial and the task still failed '
+            f'every time. The setup does not rescue everything, and it is not the only thing wrong.')
 
 
 def strength_line(c: dict[str, Any]) -> str:
@@ -258,7 +306,7 @@ def hero_section(raw: dict[str, Any]) -> str:
     # css_vars so the gauge takes its colours from the page: the same file has
     # to hold up on a white ground and on a dark one.
     art = brain_svg(before['rate'], after['rate'], prefix='hero-brain', css_vars=True,
-                    before_text='Skills off', after_text='Skills on')
+                    before_text='Skills off', after_text='Skills on', show_labels=False)
     grid = raw['grid']
     # Whose setup, which model, which tasks. A page that leaves any of the three
     # to be inferred reads as a template with numbers dropped into it, which is
@@ -267,7 +315,6 @@ def hero_section(raw: dict[str, Any]) -> str:
               f'{grid["tasks"]} tasks taken from its real sessions, each paired with the one '
               f'installed skill that covers it, run on {grid["models"].get("base", "one model")} '
               f'with that skill out of reach and then in reach.')
-    missed = never_passed_line(raw)
     return f'''<section class="hero" aria-labelledby="hero-title">
   <div class="hero-cloud" data-cloud></div>
   <div class="hero-copy">
@@ -275,7 +322,6 @@ def hero_section(raw: dict[str, Any]) -> str:
     <h1 id="hero-title">{esc(headline(raw)[0])}</h1>
     <p class="hero-sub">{esc(headline(raw)[1])}</p>
     <p class="hero-verdict">{esc(verdict_line(raw))}</p>
-    {f'<p class="hero-missed">{esc(missed)}</p>' if missed else ''}
   </div>
   <figure class="hero-chart">
     <div class="hemi hemi-before">
@@ -380,15 +426,33 @@ def cost_section(raw: dict[str, Any]) -> str:
 
     hero = raw['contrasts'][HERO_CONTRAST]
     cb, ca = cost.get(hero['before']['arm']) or {}, cost.get(hero['after']['arm']) or {}
+    # Tokens are the bill, but they are not the only cost, and a section headed
+    # "the bill barely moves" that quietly omits a 42% rise in turns is doing the
+    # thing this page keeps accusing other reports of. Both are stated, from the
+    # same rows, including the one that goes the wrong way.
+    turn_moves = [(cost[b].get('turns_per_run', 0) - cost[a].get('turns_per_run', 0))
+                  / cost[a]['turns_per_run'] * 100
+                  for a, b in pairs if cost[a].get('turns_per_run')]
     lede = ('Adding the skill moves per-run token spend by under '
             f'{math.ceil(spread)}%, on either model. '
             if spread is not None else 'Per-run token spend barely moves. ')
-    if cb.get('billed_per_pass') and ca.get('billed_per_pass'):
-        lede += (f'What it moves is how many of those runs produce something that passes, so the '
-                 f'same budget buys {cb["billed_per_pass"] / ca["billed_per_pass"]:.0f} times as '
-                 f'much work that clears its checks.')
-    else:
-        lede += 'What it moves is how many of those runs produce something that passes.'
+    if turn_moves:
+        lede += (f'It costs more conversation: up to {math.ceil(max(turn_moves))}% more turns, '
+                 f'because the agent stops to read the skill. ')
+    lede += ('What it buys for that is how many of those runs produce something that passes, '
+             'which is the only thing the spend is for.')
+
+    # The multiplier is the number a reader wants and the number this sample can
+    # least afford to print bare: the losing arm passed once in 72, so the cost
+    # per passing run there is one trial wide. It is given with what it rests on
+    # rather than left out, because leaving it out invites the reader to compute
+    # it from the table without the warning.
+    caveat = ''
+    if cb.get('billed_per_pass') and ca.get('billed_per_pass') and cb.get('passes'):
+        caveat = (f'That is a {cb["billed_per_pass"] / ca["billed_per_pass"]:.0f} times difference '
+                  f'in cost per passing run, and it is the softest number on this page: the arm it '
+                  f'divides passed {cb["passes"]} run in {cb["runs"]}, so the multiplier moves a lot '
+                  f'if that one run had gone the other way. The counts underneath it do not.')
 
     return f'''<section class="chart-block" aria-labelledby="cost-title">
   <header class="block-head">
@@ -409,7 +473,7 @@ def cost_section(raw: dict[str, Any]) -> str:
   <p class="callout-note">The last column counts the failed attempts against the successes, which
   is the only cost figure that means anything if the output has to be usable. It is not a bill you
   would ever receive: nobody reruns one task seventy times. It is what a run is worth when most
-  runs come back unusable.</p>
+  runs come back unusable. {esc(caveat)}</p>
 </section>'''
 
 
@@ -440,13 +504,13 @@ def repro_section(raw: dict[str, Any]) -> str:
         # most damaging thing this table can reveal, so it is flagged rather
         # than left for the reader to spot by comparing two columns.
         after_loaded = loaded.get('after')
-        flag = ' class="down"' if after_loaded == 0 else ''
+        cls = 'num down' if after_loaded is not None and after_loaded < trials else 'num'
         rows.append(
             f'<tr><td>{esc(p["task_id"])}</td>'
             f'<td>{esc(meta.get("skill") or "not recorded")}</td>'
             f'<td class="num">{tb.get("before", {}).get("passed", "&middot;")}/{trials}</td>'
             f'<td class="num">{tb.get("after", {}).get("passed", "&middot;")}/{trials}</td>'
-            f'<td class="num"{flag}>{after_loaded if after_loaded is not None else "&middot;"}/{trials}</td></tr>')
+            f'<td class="{cls}">{after_loaded if after_loaded is not None else "&middot;"}/{trials}</td></tr>')
 
     return f'''<section class="chart-block" aria-labelledby="repro-title">
   <header class="block-head">
@@ -455,6 +519,8 @@ def repro_section(raw: dict[str, Any]) -> str:
     <p class="lede">The harness is in the repository. Same seed, same tasks, same verifiers.
     What will differ on your machine is the setup being measured, which is the point.</p>
   </header>
+  {f'<p class="repro-finding">{esc(load_failure_line(raw))}</p>' if load_failure_line(raw) else ''}
+  {f'<p class="repro-finding quiet">{esc(never_passed_line(raw))}</p>' if never_passed_line(raw) else ''}
   <pre class="repro-cmd"><code>{esc(prov.get('command') or 'not recorded')}</code></pre>
   <dl class="spec repro-spec">
     <dt>Harness version</dt><dd>{esc(prov.get('harness_commit') or 'not recorded')}</dd>

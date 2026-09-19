@@ -24,11 +24,17 @@ TOKENS = {'ground': 'var(--bg,#ffffff)', 'current': 'var(--ink,#050505)',
 
 def brain_svg(before: float | None, after: float | None, prefix: str = 'brain',
               css_vars: bool = False,
-              before_text: str = 'Current', after_text: str = 'Tested') -> str:
+              before_text: str = 'Current', after_text: str = 'Tested',
+              show_labels: bool = True) -> str:
     """The two halves are captioned inside the drawing, so the caller has to be
     able to set those captions. Hard-coding "Current" and "Tested" let the SVG
     contradict the labels the page set beside it, which is the kind of mismatch
-    a reader stops at."""
+    a reader stops at.
+
+    `show_labels=False` drops the drawn captions for a page that already sets
+    them beside the halves, where drawing them again puts the same two words on
+    screen twice. They stay in the aria-label either way, because a screen
+    reader gets the figure without the page's own labels around it."""
     if not re.fullmatch(r'[a-zA-Z][a-zA-Z0-9_-]*', prefix):
         raise ValueError('Invalid SVG prefix')
     c = TOKENS if css_vars else FIXED
@@ -79,8 +85,8 @@ def brain_svg(before: float | None, after: float | None, prefix: str = 'brain',
 {hemi('', y_before, before, 'current', c['current'], c['quiet'])}
 {hemi('translate(440 0) scale(-1 1)', y_after, after, 'tested', c['tested'], c['quiet'])}
 <path d="M220 48v332" stroke="{c['divide']}" stroke-width="1"/>
-<g font-family="Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="12" font-weight="600" text-anchor="middle">
+{f"""<g font-family="Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="12" font-weight="600" text-anchor="middle">
   <text x="126" y="418" fill="{c['label']}">{esc(before_text)}</text>
   <text x="314" y="418" fill="{c['tested']}">{esc(after_text)}</text>
-</g>
+</g>""" if show_labels else ''}
 </svg>'''

@@ -77,10 +77,6 @@ b,strong{font-weight:620}
    turning into a second headline competing with the first. */
 .hero-verdict{margin:14px 0 0;max-width:58ch;font-size:15px;font-weight:560;
   padding-left:13px;border-left:2px solid var(--blue)}
-/* What the setup did not fix, set quieter than the recommendation it qualifies
-   but still in the first screen, where a reader decides whether to trust the page. */
-.hero-missed{margin:10px 0 0;max-width:58ch;font-size:13px;color:var(--muted);padding-left:15px}
-
 .hero-chart{
   margin:40px 0 0;display:grid;align-items:center;justify-items:center;
   grid-template-columns:1fr minmax(260px,480px) 1fr;gap:clamp(12px,3vw,40px);
@@ -158,6 +154,11 @@ b,strong{font-weight:620}
   border-radius:var(--radius);overflow-x:auto;font:12.5px/1.5 var(--mono)}
 .repro-cmd code{white-space:pre}
 .repro-spec{margin-top:22px;max-width:520px}
+/* The named evidence for the page's instruction, set beside the table it is
+   read from rather than in the hero, where it was the fourth paragraph. */
+.repro-finding{margin:0 0 14px;max-width:72ch;font-size:14px;
+  padding-left:13px;border-left:2px solid var(--down)}
+.repro-finding.quiet{font-size:13px;color:var(--muted);border-left-color:var(--line)}
 
 .table-scroll{overflow-x:auto;margin-top:34px}
 .contrast-table{width:100%;min-width:620px;border-collapse:collapse;font-size:13px}
