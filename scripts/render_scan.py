@@ -38,6 +38,9 @@ PUBLIC_SCHEMA = "brain-surgery-scan-public/0.1"
 # per-skill title and detail; this supplies the heading the codes group under, so
 # five shadowed skills read as one problem rather than five separate alarms.
 GROUPS = {
+    "malformed": ("Skills that cannot load at all",
+                  "A host reads a skill through its YAML frontmatter. These files are missing "
+                  "it, so they look installed and never run."),
     "load_failed": ("Skills that failed when your agent reached for them",
                     "Your agent tried to use these and got an error back. The work continued without them."),
     "shadowed": ("Skills competing for the same trigger",
@@ -54,7 +57,8 @@ GROUPS = {
                     "Nothing below is a measurement of use. Widen the window or scan a "
                     "project that has transcripts to get one."),
 }
-ORDER = ["shadowed", "load_failed", "inventory_gap", "duplicated", "dormant", "no_evidence"]
+ORDER = ["malformed", "shadowed", "load_failed", "inventory_gap", "duplicated",
+         "dormant", "no_evidence"]
 
 # What each confidence bucket means to the reader, in their words rather than ours.
 # The scan emits the bucket; this is the only place it is explained.
