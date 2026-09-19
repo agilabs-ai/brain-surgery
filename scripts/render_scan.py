@@ -41,7 +41,10 @@ GROUPS = {
     "load_failed": ("Skills that failed when your agent reached for them",
                     "Your agent tried to use these and got an error back. The work continued without them."),
     "shadowed": ("Skills competing for the same trigger",
-                 "More than one skill claims this work. Which one your agent picks is not something you control."),
+                 "More than one skill claims this work, and the files differ. Which one your agent picks is not something you control."),
+    "duplicated": ("Stored in two places, identically",
+                   "The same skill, byte for byte, in two roots. Nothing is broken: whichever loads, "
+                   "you get the same thing. It matters only when you edit one and forget the other."),
     "inventory_gap": ("Skills loaded from outside the inventory",
                       "Your agent loaded these from somewhere this scan could not see, so their contents were never checked."),
     "dormant": ("Installed and never reached",
@@ -50,7 +53,7 @@ GROUPS = {
                     "Nothing below is a measurement of use. Widen the window or scan a "
                     "project that has transcripts to get one."),
 }
-ORDER = ["shadowed", "load_failed", "inventory_gap", "dormant", "no_evidence"]
+ORDER = ["shadowed", "load_failed", "inventory_gap", "duplicated", "dormant", "no_evidence"]
 
 # What each confidence bucket means to the reader, in their words rather than ours.
 # The scan emits the bucket; this is the only place it is explained.

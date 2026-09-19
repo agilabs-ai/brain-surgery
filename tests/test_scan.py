@@ -554,3 +554,41 @@ class Reverification(unittest.TestCase):
             'inventory_gap': []})
         self.assertEqual(result['resolved_since'], [])
         self.assertEqual(len([f for f in result['findings'] if f['code'] == 'load_failed']), 1)
+
+
+class IdenticalCopies(unittest.TestCase):
+    """Every collision on the first real machine scanned was the same skill copied,
+    not symlinked, into a second harness root. Byte-identical, so whichever one the
+    host loads the behaviour is the same. Calling that a defect invents work and
+    teaches the reader to ignore the scan."""
+
+    def run_with(self, digests):
+        return analyze({'schema_version': 'brain-surgery-inspection/0.3',
+                        'skills': [{'name': 'ax-browser-broker', 'aliases': ['ax-browser-broker'],
+                                    'path': f'/root{n}/ax-browser-broker/SKILL.md',
+                                    'skill_md_sha256': d}
+                                   for n, d in enumerate(digests)],
+                        'sessions': [{'turns': [1]}], 'inventory_gap': []})
+
+    def test_identical_copies_are_an_observation_not_a_defect(self):
+        result = self.run_with(['same', 'same'])
+        hit = [f for f in result['findings'] if f['skill'] == 'ax-browser-broker'][0]
+        self.assertEqual(hit['code'], 'duplicated')
+        self.assertEqual(hit['confidence'], 'observation')
+        self.assertTrue(hit['evidence']['identical'])
+
+    def test_copies_that_differ_are_still_a_confirmed_collision(self):
+        """The guard must not swallow the case it was narrowed around: two files
+        that really do differ means one wins and the other never runs."""
+        result = self.run_with(['one', 'other'])
+        hit = [f for f in result['findings'] if f['skill'] == 'ax-browser-broker'][0]
+        self.assertEqual(hit['code'], 'shadowed')
+        self.assertEqual(hit['confidence'], 'confirmed')
+        self.assertFalse(hit['evidence']['identical'])
+
+    def test_a_missing_digest_is_treated_as_differing(self):
+        """Absent evidence must not be read as evidence of sameness, which would
+        downgrade a real collision on the strength of a field nobody filled in."""
+        result = self.run_with(['one', None])
+        hit = [f for f in result['findings'] if f['skill'] == 'ax-browser-broker'][0]
+        self.assertEqual(hit['code'], 'shadowed')
