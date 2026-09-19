@@ -1,0 +1,10 @@
+{
+  "site": "https://toolshelf.example",
+  "pagePattern": "https://toolshelf.example/tools/<id>/",
+  "repoHost": "https://repo.example",
+  "tools": [
+    {"id": "quickstash", "title": "Quickstash"},
+    {"id": "routeguard", "title": "Routeguard"},
+    {"id": "deskmap", "title": "Deskmap"}
+  ]
+}

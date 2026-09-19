@@ -1,0 +1,8 @@
+{
+  "arm": "without",
+  "sample": 3,
+  "score": 100,
+  "exit": 1,
+  "seconds": 49,
+  "note": "worker crashed after scoring, result not trustworthy"
+}

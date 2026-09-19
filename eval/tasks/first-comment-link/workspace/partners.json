@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Northpin",
+    "handle": "northpin-labs",
+    "entityId": "urn:org:5512347",
+    "site": "https://northpin.example"
+  },
+  {
+    "name": "Calder Works",
+    "handle": "calder-works",
+    "entityId": "urn:org:4471190",
+    "site": "https://calderworks.example"
+  }
+]

@@ -1,0 +1,4 @@
+item: cost-report
+pct: 10
+blocker: none
+notes: query written, nobody has looked at the output, low priority this month

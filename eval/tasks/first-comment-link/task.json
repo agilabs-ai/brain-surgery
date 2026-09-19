@@ -1,0 +1,7 @@
+{
+  "id": "first-comment-link",
+  "workflow": "other",
+  "skill": "bsw-first-comment-link",
+  "prompt": "The Quickstash post is queued for tomorrow, it's in queue/scheduled-post.json. Can you make sure the download link is on the first comment, and tag Northpin on the post? They built the sync piece with us.",
+  "seed": {}
+}

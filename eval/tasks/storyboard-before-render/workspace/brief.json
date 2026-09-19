@@ -1,0 +1,31 @@
+{
+  "project": "Halyard launch explainer",
+  "aspect": "16:9",
+  "fps": 30,
+  "scenes": [
+    {
+      "id": "sc-01",
+      "seconds": 4.0,
+      "headline": "Six people, one rota",
+      "caption": "Monday morning, everybody edits the same file at once."
+    },
+    {
+      "id": "sc-02",
+      "seconds": 5.0,
+      "headline": "One live schedule",
+      "caption": "Halyard holds the rota so every shift reads the same to everyone."
+    },
+    {
+      "id": "sc-03",
+      "seconds": 4.5,
+      "headline": "Swaps in two taps",
+      "caption": "Whoever picks up the shift confirms, and the rota updates itself."
+    },
+    {
+      "id": "sc-04",
+      "seconds": 4.5,
+      "headline": "Close the week once",
+      "caption": "Hours, breaks and premiums land in payroll already reconciled."
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "p-8812",
+  "channel": "linkedin",
+  "status": "scheduled",
+  "dueAt": "2026-09-19T08:30:00Z",
+  "body": "We ran a closed beta for six weeks and watched one number the whole time.\n\nNot signups. 2,140 people joined, and that told us very little.\n\nThe number was this: 61% of them saved something in the first hour.\n\nPeople adopt a tool when it removes a small daily irritation in the first session — not when it is clever.\n\nThe irritation here is the gap between \"I had this somewhere\" and \"here it is\".\n\nMedian time to recall in the beta came out at nine seconds.\n\nQuickstash is live today. Grab it at https://repo.example/toolshelf/quickstash or run npx toolshelf add quickstash.",
+  "firstComment": "",
+  "mentions": []
+}

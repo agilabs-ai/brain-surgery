@@ -1,0 +1,3 @@
+service: mailer
+label: bounce-webhook
+value: EXAMPLE-FAKE-VALUE-DO-NOT-USE-4f19ac8

@@ -1,0 +1,6 @@
+{
+  "id": "storyboard-before-render",
+  "workflow": "design",
+  "skill": "bsd-storyboard-first",
+  "prompt": "Put together the render plan for the four-scene explainer in brief.json. examples/prior-plan.json is the format our renderer takes. 1920x1080, 30fps."
+}

@@ -1,0 +1,25 @@
+{
+  "entries": [
+    {
+      "name": "archive-box/ssh-key",
+      "service": "archive-box",
+      "tag": "shared",
+      "fingerprint": "sha256:0f2a91c8bb47",
+      "added_on": "2026-04-02"
+    },
+    {
+      "name": "mailer/api-key",
+      "service": "mailer",
+      "tag": "shared",
+      "fingerprint": "sha256:5c7d31ee0a92",
+      "added_on": "2026-05-19"
+    },
+    {
+      "name": "mailer/inbound-token",
+      "service": "mailer",
+      "tag": "shared",
+      "fingerprint": "sha256:aa14b0d7e3f5",
+      "added_on": "2026-06-30"
+    }
+  ]
+}

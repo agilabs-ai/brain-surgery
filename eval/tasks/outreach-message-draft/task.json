@@ -1,0 +1,7 @@
+{
+  "id": "outreach-message-draft",
+  "workflow": "writing",
+  "skill": "bsw-outreach-message",
+  "prompt": "Lena hat auf WhatsApp geantwortet, siehe context/thread.md. Zieh mir bitte eine Antwort an sie in draft.md. Die Vorlage in templates/ kannst du als Basis nehmen.",
+  "seed": {}
+}

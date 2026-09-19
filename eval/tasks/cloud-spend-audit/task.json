@@ -1,0 +1,7 @@
+{
+  "id": "cloud-spend-audit",
+  "workflow": "spreadsheets",
+  "skill": "bso-spend-audit",
+  "prompt": "the cloud spend this month is way higher than it should be. ./billing-export.csv is the export. i want it broken down per account, what is driving each one, and what we do about it. write it up in spend-audit.md here. offline export, no need to call anything.",
+  "seed": {}
+}

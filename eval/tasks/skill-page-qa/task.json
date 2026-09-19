@@ -1,0 +1,6 @@
+{
+  "id": "skill-page-qa",
+  "workflow": "coding",
+  "skill": "bsd-catalog-publish-bar",
+  "prompt": "Do a QA pass on the catalog before we publish. catalog.json is the source of truth and dist/pages is what actually gets served. Some of these look unprofessional next to the others. Fix what is wrong."
+}

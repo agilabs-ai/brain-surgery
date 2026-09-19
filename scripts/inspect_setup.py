@@ -32,23 +32,44 @@ MAX_LOG_ROWS = 400000                   # per transcript
 # percent dormant while saving no time at all, because the wall clock is directory
 # walking, not reading. This is now high enough that it does not bind in practice.
 MAX_TOTAL_BYTES = 64 * 1024 * 1024 * 1024
-MAX_SCAN_FILES = 3000
+MAX_SCAN_FILES = 20000
+MAX_INVENTORY = 2000
 
 
 def bounded_files(root: Path, name: str, ceiling: int = MAX_SCAN_FILES):
-    """Do not follow symlinks or walk unbounded trees."""
-    if not root.is_dir() or root.is_symlink():
+    """Walk a root and yield matching files, following symlinks under guard.
+
+    Skill roots are routinely assembled out of symlinks: one canonical copy of a
+    skill, linked into every host directory that should see it. Refusing to follow
+    them skipped 116 of the 197 entries in one real `~/.claude/skills`, and called
+    skills dormant that the agent loads every day. That is not a conservative
+    reading of a setup, it is the wrong one, and it lands on the headline number.
+
+    Following links needs guards of its own. Each directory is resolved before it
+    is entered and a directory already visited is not entered a second time, which
+    ends a cycle and stops a link into a shared parent from being walked twice. The
+    file ceiling still bounds the walk, so a link into a huge tree costs a capped
+    number of stats rather than the session.
+    """
+    if not root.is_dir():
         return
     walked=0
-    for parent,dirs,files in os.walk(root, followlinks=False):
-        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not (Path(parent)/d).is_symlink())
+    visited: set[str] = set()
+    for parent,dirs,files in os.walk(root, followlinks=True):
+        try:
+            real=os.path.realpath(parent)
+        except OSError:
+            dirs[:]=[];continue
+        if real in visited:
+            dirs[:]=[];continue
+        visited.add(real)
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
         for item in sorted(files):
             walked+=1
             if walked > ceiling:
                 return
-            path=Path(parent)/item
-            if not path.is_symlink() and (item == name or (name=='*.jsonl' and item.endswith('.jsonl'))):
-                yield path
+            if item == name or (name=='*.jsonl' and item.endswith('.jsonl')):
+                yield Path(parent)/item
 
 
 def skill_header(text: str) -> dict[str,str]:
@@ -70,8 +91,12 @@ def inventory(roots: list[Path]) -> dict[str,Any]:
             warnings.append(f'Skill root not found: {root}')
             continue
         for p in bounded_files(root,'SKILL.md'):
-            if len(result)>=300:
-                warnings.append('300-skill inventory limit reached')
+            # A runaway guard, not a sampling knob. At 300 it bound on an ordinary
+            # heavily-used machine and silently set the headline itself, which is
+            # the same failure the session and byte caps above were raised for.
+            if len(result)>=MAX_INVENTORY:
+                warnings.append(f'{MAX_INVENTORY}-skill inventory limit reached; '
+                                'counts below are a floor, not a ceiling')
                 break
             if str(p.resolve()) in seen:continue
             seen.add(str(p.resolve()))
@@ -156,12 +181,54 @@ def encode_project(project: Path) -> str:
     return str(project).replace('/','-')
 
 
-def default_skill_roots(project: Path, home: Path) -> list[Path]:
+def bare_skill_name(name: str | None) -> str:
+    """A plugin skill loads under `plugin:skill` but names itself `skill` in its own
+    SKILL.md. Strip the qualifier so the inventory and the transcripts agree on what
+    a skill is called. Directory-scoped skills use the same separator, so this also
+    covers `apps/web:deploy`."""
+    if not name:return ''
+    return name.rsplit(':',1)[-1].strip()
+
+
+def default_skill_roots(project: Path, home: Path, host: str='claude') -> list[Path]:
     """Project-local skills first, then the user-level roots. Skills are usually
     installed once for the whole machine, so a project-only inventory misses most
-    of them and makes the setup look far smaller than it is."""
-    return [project/'.agents/skills', project/'.claude/skills',
-            home/'.agents/skills', home/'.claude/skills']
+    of them and makes the setup look far smaller than it is.
+
+    Roots are per host. A machine that runs both Codex and Claude keeps a root for
+    each, usually with the same skills copied into both, and pooling them counts
+    every shared skill twice: once as installed capability the scanned host never
+    reached, and once as a name declared in two places. Both readings are wrong,
+    because the other host's root was never on this host's search path.
+
+    Plugin roots do count. A plugin the user installed puts real, loadable skills
+    under the plugin cache, and leaving that out reported skills that demonstrably
+    load as missing from disk, which reads as a fault in the setup rather than a
+    gap in this scan.
+    """
+    roots=[project/'.agents/skills', project/'.claude/skills', home/'.agents/skills']
+    roots.append(home/('.codex/skills' if host=='codex' else '.claude/skills'))
+    if host=='codex':
+        return roots
+    # Installed plugin versions only. The sibling `marketplaces/` tree is the
+    # catalogue clone: it holds every plugin the marketplace offers, including ones
+    # this machine never installed, and counting those as installed capability
+    # inflates the denominator with skills the agent could never have reached.
+    #
+    # One version per plugin. The cache never evicts, so a plugin updated ten times
+    # leaves ten version directories side by side. All but the newest are dead, and
+    # counting them turns routine plugin updates into nine phantom installs and a
+    # name-collision warning about a plugin that is in fact working fine.
+    newest: dict[tuple[str,str],Path] = {}
+    for skills in (home/'.claude/plugins/cache').glob('*/*/*/skills'):
+        if not skills.is_dir():continue
+        version=skills.parent
+        key=(version.parent.parent.name, version.parent.name)   # marketplace, plugin
+        current=newest.get(key)
+        if current is None or version.stat().st_mtime > current.parent.stat().st_mtime:
+            newest[key]=skills
+    roots+=[newest[k] for k in sorted(newest)]
+    return roots
 
 
 def default_log_roots(host: str, project: Path, home: Path, scope: str) -> tuple[list[Path],list[str]]:
@@ -270,9 +337,12 @@ def inspect(project: Path, host: str, roots: list[Path], logs: list[Path], days=
         sessions.append(item)
     # A skill the agent actually loaded but the inventory never saw means a skill root
     # was missed. Report it; never let the inventory quietly contradict the transcripts.
-    known={s.get('name') for s in inv['skills'] if s.get('name')}
+    # A plugin skill is recorded as `plugin:skill` when it loads and as the bare name
+    # in its own SKILL.md, so compare on the bare name or every plugin skill on the
+    # machine reads as missing from disk.
+    known={bare_skill_name(s.get('name')) for s in inv['skills'] if s.get('name')}
     used={a['name'] for x in sessions for a in x['skill_attempts'] if a.get('name')}
-    unseen=sorted(n for n in used-known if n)
+    unseen=sorted({bare_skill_name(n) for n in used if n and bare_skill_name(n) not in known})
     if unseen:
         warnings.append('Loaded but not inventoried (a skill root is missing from --skill-root): '
                         +', '.join(unseen))
@@ -308,7 +378,7 @@ def main():
     if not a.project.is_dir():p.error('Project directory does not exist')
     if not 1<=a.max_sessions<=2000 or not 1<=a.days<=365:p.error('Invalid scan limits')
     home=Path.home()
-    roots=a.skill_root or default_skill_roots(a.project,home)
+    roots=a.skill_root or default_skill_roots(a.project,home,a.host)
     logs=a.logs; notes=[]
     if not logs:
         logs,notes=default_log_roots(a.host,a.project,home,a.scope)

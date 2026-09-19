@@ -1,0 +1,6 @@
+{
+  "id": "status-page",
+  "workflow": "writing",
+  "skill": "bsd-status-page",
+  "prompt": "I am a bit lost on where this pilot stands. Build me a status page out of notes/ with every outstanding item on it, and flag the ones that are waiting on a decision from me."
+}

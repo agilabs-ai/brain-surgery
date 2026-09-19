@@ -1,0 +1,32 @@
+{
+  "site": "https://catalog.example/",
+  "skills": [
+    {
+      "id": "rota-sync",
+      "title": "Rota Sync",
+      "description": "Keeps a shared staff rota in one place so shift swaps, cover requests and overtime all settle against the same live schedule.",
+      "logo": "assets/rota-sync.svg",
+      "evals": {"tasks": 12, "pass_rate": 0.83}
+    },
+    {
+      "id": "invoice-sweep",
+      "title": "Invoice Sweep",
+      "description": "TODO",
+      "logo": "assets/invoice-sweep.svg",
+      "evals": {"tasks": 9, "pass_rate": 0.71}
+    },
+    {
+      "id": "lane-finder",
+      "title": "Lane Finder",
+      "description": "Finds the cheapest viable freight lane for a shipment across contracted carriers and explains why it picked that one.",
+      "logo": "assets/lane-finder.svg"
+    },
+    {
+      "id": "shift-pay",
+      "title": "Shift Pay",
+      "description": "Turns an approved week of shifts into a payroll-ready breakdown with breaks, premiums and overtime already reconciled.",
+      "logo": "assets/shift-pay.svg",
+      "evals": {"tasks": 7, "pass_rate": 0.64}
+    }
+  ]
+}

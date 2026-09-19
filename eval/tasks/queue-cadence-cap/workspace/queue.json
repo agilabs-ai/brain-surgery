@@ -1,0 +1,51 @@
+[
+  {
+    "id": "q-101",
+    "channel": "linkedin",
+    "status": "scheduled",
+    "dueAt": "2026-09-21T08:30:00Z",
+    "body": "Three things we got wrong about onboarding, and the one we kept."
+  },
+  {
+    "id": "q-102",
+    "channel": "linkedin",
+    "status": "scheduled",
+    "dueAt": "2026-09-21T15:00:00Z",
+    "body": "A customer asked us to remove a feature last week. We did."
+  },
+  {
+    "id": "q-103",
+    "channel": "linkedin",
+    "status": "scheduled",
+    "dueAt": "2026-09-22T07:45:00Z",
+    "body": "Quickstash is live. Here is what six weeks of beta taught us."
+  },
+  {
+    "id": "q-104",
+    "channel": "linkedin",
+    "status": "scheduled",
+    "dueAt": "2026-09-22T09:30:00Z",
+    "body": "Why we stopped measuring signups and started measuring first hour saves."
+  },
+  {
+    "id": "q-105",
+    "channel": "linkedin",
+    "status": "scheduled",
+    "dueAt": "2026-09-22T11:15:00Z",
+    "body": "The hiring bar nobody writes down, and how we ended up writing it down."
+  },
+  {
+    "id": "q-106",
+    "channel": "linkedin",
+    "status": "scheduled",
+    "dueAt": "2026-09-23T15:00:00Z",
+    "body": "Support tickets are a product spec if you read enough of them."
+  },
+  {
+    "id": "q-107",
+    "channel": "x",
+    "status": "scheduled",
+    "dueAt": "2026-09-22T16:00:00Z",
+    "body": "Quickstash is live today."
+  }
+]

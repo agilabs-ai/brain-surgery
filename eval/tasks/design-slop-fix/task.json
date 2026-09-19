@@ -1,0 +1,6 @@
+{
+  "id": "design-slop-fix",
+  "workflow": "design",
+  "skill": "bsd-visual-house-style",
+  "prompt": "page.html goes live tomorrow and it reads like every other AI-generated landing page to me. Do a visual pass over it and fix that. The wording stays as it is, I just want it to stop looking generic."
+}

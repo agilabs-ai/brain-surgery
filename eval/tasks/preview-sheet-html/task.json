@@ -1,0 +1,6 @@
+{
+  "id": "preview-sheet-html",
+  "workflow": "design",
+  "skill": "bsd-review-sheet",
+  "prompt": "Before we build anything I want to look at the five scenes in scenes.json properly. Put them on one HTML sheet I can scroll through."
+}

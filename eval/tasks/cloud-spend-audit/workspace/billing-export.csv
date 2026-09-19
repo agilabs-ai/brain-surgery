@@ -1,0 +1,13 @@
+account_id,service,month,amount_eur
+acct-blue,compute,2026-08,300.00
+acct-green,managed-db,2026-08,110.00
+acct-slate,inference-api,2026-08,180.00
+acct-blue,compute,2026-09,412.37
+acct-blue,storage,2026-09,78.15
+acct-blue,network,2026-09,9.55
+acct-blue,credit,2026-09,-50.00
+acct-green,managed-db,2026-09,120.40
+acct-green,compute,2026-09,15.05
+acct-green,credit,2026-09,-135.45
+acct-slate,inference-api,2026-09,233.11
+acct-slate,storage,2026-09,4.99

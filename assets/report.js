@@ -36,3 +36,15 @@ const actions={
 $$('[data-action]').forEach(b=>b.addEventListener('click',()=>{const action=actions[b.dataset.action];if(action)action();}));
 if(L&&$('#test-body')){L.pairs.forEach(p=>{const tr=document.createElement('tr');const td=document.createElement('td');td.textContent=p.title||p.workflow;const small=document.createElement('small');small.textContent=p.local_reference||'';td.append(small);tr.append(td);['before','after'].forEach(k=>{const c=document.createElement('td');c.textContent=p.valid?(p[k]?'Pass':'Fail'):'Not scored';c.className=p.valid?(p[k]?'pass':'fail'):'';tr.append(c);});$('#test-body').append(tr);});}
 updatePreview();
+
+/* Header retreats on the way down and comes back on the way up, so the share
+   control is one gesture away without the bar sitting on top of the report. */
+(function(){const nav=document.querySelector('.nav');if(!nav)return;
+ let last=window.scrollY,ticking=false;
+ function apply(){const y=window.scrollY;
+  nav.classList.toggle('nav-lifted',y>8);
+  if(y>last&&y>140)nav.classList.add('nav-away');
+  else if(y<last)nav.classList.remove('nav-away');
+  last=y;ticking=false;}
+ addEventListener('scroll',()=>{if(!ticking){ticking=true;requestAnimationFrame(apply);}},{passive:true});
+ apply();})();

@@ -1,0 +1,4 @@
+item: alert-routing
+pct: 40
+blocker: owner is on leave until the 12th
+notes: pager rules drafted, nothing wired up, the old routing is still live

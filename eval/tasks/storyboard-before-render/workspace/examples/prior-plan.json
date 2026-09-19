@@ -1,0 +1,64 @@
+{
+  "project": "Lane Finder teaser",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "audio": {"bed": "assets/bed.m4a", "gain_db": -18},
+  "scenes": [
+    {
+      "id": "sc-01",
+      "seconds": 3.5,
+      "background": "#0d0f14",
+      "nodes": [
+        {
+          "type": "image",
+          "src": "assets/map.svg",
+          "at": {"x": 420, "y": 180},
+          "animate": {"opacity": [0, 1], "scale": [1.04, 1.0], "translateY": [60, 0]}
+        },
+        {
+          "type": "text",
+          "role": "headline",
+          "content": "Every lane, priced",
+          "at": {"x": 160, "y": 760},
+          "style": {"size": 84, "weight": 600},
+          "animate": {"opacity": [0, 1], "translateY": [36, 0]}
+        }
+      ]
+    },
+    {
+      "id": "sc-02",
+      "seconds": 4.0,
+      "background": "#0d0f14",
+      "nodes": [
+        {
+          "type": "shape",
+          "shape": "bar",
+          "at": {"x": 160, "y": 420},
+          "animate": {"scaleX": [0, 1]}
+        },
+        {
+          "type": "text",
+          "role": "caption",
+          "content": "It explains the pick, not just the number.",
+          "at": {"x": 160, "y": 820},
+          "style": {"size": 42, "weight": 400},
+          "animate": {"opacity": [0, 1], "translateX": [-48, 0]}
+        }
+      ]
+    },
+    {
+      "id": "sc-03",
+      "seconds": 3.0,
+      "background": "#0d0f14",
+      "nodes": [
+        {
+          "type": "image",
+          "src": "assets/logo.svg",
+          "at": {"x": 820, "y": 460},
+          "animate": {"opacity": [0, 1]}
+        }
+      ]
+    }
+  ]
+}

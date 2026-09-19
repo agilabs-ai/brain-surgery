@@ -1,0 +1,7 @@
+{
+  "id": "prior-draft-recall",
+  "workflow": "research",
+  "skill": "bsr-artifact-recall",
+  "prompt": "Before I sit down and do the launch copy: we went round on this months ago already, no? Have a look through history/ and put whatever you turn up in found.md.",
+  "seed": {}
+}

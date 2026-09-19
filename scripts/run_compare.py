@@ -112,6 +112,7 @@ def compare(plan: dict, config: dict, out: Path) -> dict:
         rows.append(pair)
     result={'schema_version':'brain-surgery/0.3','example':bool(plan.get('example') or fixture_seen),
         'metric_kind':'task_pass_rate','model_family':plan.get('model_family','Not shared'),'evaluator_type':'fixed_checks',
+        **({'model_lift':plan['model_lift'],'stronger_model':plan.get('stronger_model')} if plan.get('model_lift') is not None else {}),
         'skills_inspected':plan.get('skills_inspected',0),'finding_codes':plan.get('finding_codes',[]),'pairs':rows,
         'plan':{'status':'draft_not_applied','candidate_bundle':plan['seal'],
             'base_configuration_fingerprint':plan['settings_sha256']['current'],'changes':plan.get('changes',[])},

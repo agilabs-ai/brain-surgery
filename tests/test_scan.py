@@ -12,7 +12,8 @@ import tempfile
 import unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'scripts'))
-from inspect_setup import LEGACY_PER_FILE_CAP, inspect, normalize
+from inspect_setup import (LEGACY_PER_FILE_CAP, bare_skill_name, default_skill_roots,
+                           inspect, inventory, normalize)
 from analyze_scan import analyze, usage
 
 
@@ -246,6 +247,76 @@ class AnalyzeTests(unittest.TestCase):
         self.assertTrue(limits['complete'])
         self.assertNotIn('li-post-fede',json.dumps(limits['reasons']))
         self.assertIn(secret,limits['warnings'])  # raw text stays, local report only
+
+
+class InventoryRoots(unittest.TestCase):
+    """The inventory is the denominator of the headline. A skill it cannot see is
+    counted as capability the user does not have, which is the one direction the
+    scan must never be wrong in silently."""
+
+    def skill(self,path: Path,name: str):
+        path.mkdir(parents=True,exist_ok=True)
+        (path/'SKILL.md').write_text(f'---\nname: {name}\ndescription: d\n---\n\nbody\n')
+
+    def test_a_symlinked_skill_directory_is_inventoried(self):
+        """Bug: skill roots are commonly built from symlinks, one canonical copy
+        linked into each host's directory. Skipping links skipped 116 of the 197
+        entries in a real ~/.claude/skills and called daily-used skills dormant."""
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp)
+            self.skill(base/'canonical/seo','seo')
+            root=base/'root';root.mkdir()
+            (root/'seo').symlink_to(base/'canonical/seo')
+            inv=inventory([root])
+            self.assertEqual([s['name'] for s in inv['skills']],['seo'])
+
+    def test_the_same_skill_linked_into_two_roots_is_counted_once(self):
+        """A canonical skill linked into both host roots is one skill, not two,
+        and must not surface as a name declared in two places."""
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp)
+            self.skill(base/'canonical/seo','seo')
+            roots=[]
+            for host in ('a','b'):
+                root=base/host;root.mkdir()
+                (root/'seo').symlink_to(base/'canonical/seo')
+                roots.append(root)
+            inv=inventory(roots)
+            self.assertEqual(len(inv['skills']),1)
+
+    def test_a_symlink_cycle_terminates(self):
+        """Following links needs its own guard: a link back to an ancestor must
+        end the walk rather than the session."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)/'root'
+            self.skill(root/'seo','seo')
+            (root/'seo'/'loop').symlink_to(root)
+            inv=inventory([root])
+            self.assertEqual([s['name'] for s in inv['skills']],['seo'])
+
+    def test_codex_root_is_not_scanned_for_a_claude_host(self):
+        """Both hosts keep a root and a dual-host machine copies skills into each.
+        Pooling them counts every shared skill twice: once as capability the
+        scanned host never reached, once as a name declared in two places."""
+        home=Path('/home/x');project=Path('/proj')
+        claude=default_skill_roots(project,home,'claude')
+        codex=default_skill_roots(project,home,'codex')
+        self.assertNotIn(home/'.codex/skills',claude)
+        self.assertIn(home/'.claude/skills',claude)
+        self.assertIn(home/'.codex/skills',codex)
+        self.assertNotIn(home/'.claude/skills',codex)
+
+    def test_a_plugin_qualified_load_matches_its_bare_installed_name(self):
+        """A plugin skill loads as `plugin:skill` and names itself `skill`. Counted
+        apart, one skill's usage splits across two keys and the installed half
+        reads as dormant."""
+        self.assertEqual(bare_skill_name('bs-bsr-archive-lookup:bsr-archive-lookup'),
+                         'bsr-archive-lookup')
+        self.assertEqual(bare_skill_name('seo'),'seo')
+        self.assertEqual(bare_skill_name(None),'')
+        attempts,loads,failures=usage([{'confirmed_skill_loads':[
+            {'name':'bs-x:seo'},{'name':'seo'}]}])
+        self.assertEqual(loads['seo'],2)
 
 
 if __name__=='__main__':unittest.main(verbosity=2)
