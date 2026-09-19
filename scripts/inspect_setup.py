@@ -44,6 +44,12 @@ STALE_GAP_DAYS = 7
 CODEX_SKILL_READ = re.compile(r'skills/(?P<name>[A-Za-z0-9_.-]+)/SKILL\.md')
 
 
+#: Paths the walk could not enter, collected so a scan can say its inventory is
+#: incomplete rather than silently reporting a smaller machine than it found.
+#: Module-level because `bounded_files` is a generator consumed in several places.
+unreadable: list[str] = []
+
+
 def bounded_files(root: Path, name: str, ceiling: int = MAX_SCAN_FILES):
     """Walk a root and yield matching files, following symlinks under guard.
 
@@ -61,17 +67,27 @@ def bounded_files(root: Path, name: str, ceiling: int = MAX_SCAN_FILES):
     """
     if not root.is_dir():
         return
+    if not os.access(root, os.R_OK | os.X_OK):
+        unreadable.append(str(root))
+        return
     walked=0
     visited: set[str] = set()
     for parent,dirs,files in os.walk(root, followlinks=True):
         try:
             real=os.path.realpath(parent)
         except OSError:
+            unreadable.append(parent)
             dirs[:]=[];continue
         if real in visited:
             dirs[:]=[];continue
         visited.add(real)
-        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        keep=[]
+        for d in sorted(dirs):
+            if d in SKIP_DIRS:continue
+            if not os.access(os.path.join(parent,d), os.R_OK | os.X_OK):
+                unreadable.append(os.path.join(parent,d));continue
+            keep.append(d)
+        dirs[:]=keep
         for item in sorted(files):
             walked+=1
             if walked > ceiling:
@@ -175,6 +191,7 @@ def host_bundled(names: set[str]) -> set[str]:
 
 def inventory(roots: list[Path]) -> dict[str,Any]:
     result=[];warnings=[];seen=set()
+    unreadable.clear()
     for root in roots:
         if not root.exists():
             warnings.append(f'Skill root not found: {root}')
@@ -205,7 +222,20 @@ def inventory(roots: list[Path]) -> dict[str,Any]:
             # skill twice: once as loaded-but-missing-from-disk, once as dormant.
             # One key mismatch, two findings, both wrong.
             declared=h.get('name')
-            result.append({'local_id':hashlib.sha256(str(p.resolve()).encode()).hexdigest()[:16],
+            # A host needs YAML frontmatter with a name and a description to load a
+            # skill. A SKILL.md missing them was still counted as installed, which
+            # inflates the denominator of every ratio on the page with a file the
+            # agent will never load. Recorded rather than dropped: the directory is
+            # really there, and telling the user it is malformed is more useful than
+            # quietly not counting it.
+            malformed=[]
+            if not text.lstrip().startswith('---'):
+                malformed.append('no YAML frontmatter')
+            else:
+                if not declared:malformed.append('no name')
+                if not h.get('description'):malformed.append('no description')
+            result.append({
+                'malformed':malformed or None,'local_id':hashlib.sha256(str(p.resolve()).encode()).hexdigest()[:16],
                 'name':p.parent.name,
                 'declared_name':declared if declared and declared!=p.parent.name else None,
                 'aliases':sorted({a for a in (declared,p.parent.name) if a}),
@@ -213,6 +243,13 @@ def inventory(roots: list[Path]) -> dict[str,Any]:
                 'version':h.get('version'),'edge_id_claim':h.get('edge-id'),'edge_version_claim':h.get('edge-version'),'edge_url_claim':h.get('edge-url'),'path':str(p.resolve()),'skill_md_sha256':file_digest(p),
                 'fingerprint_scope':'SKILL.md only; selected bundles need full manifest at freeze time',
                 'full_content_loaded':False})
+    if unreadable:
+        warnings.append('Could not read %d path(s), so the inventory is a floor: %s'
+                        % (len(unreadable), ', '.join(sorted(set(unreadable))[:5])))
+    bad=[x for x in result if x.get('malformed')]
+    if bad:
+        warnings.append('%d SKILL.md file(s) are missing required frontmatter and may not '
+                        'load at all: %s' % (len(bad), ', '.join(sorted(x['name'] for x in bad)[:5])))
     return {'skills':result,'warnings':warnings}
 
 
@@ -436,8 +473,13 @@ def inspect(project: Path, host: str, roots: list[Path], logs: list[Path], days=
                     oversized+=1;continue
                 if len(rows)>=MAX_LOG_ROWS:
                     warnings.append(f'Row cap reached, log read is partial: {path}');bad+=1;break
+                # ValueError, not JSONDecodeError. `json.loads` on bytes sniffs the
+                # encoding first, so a binary file in the logs directory raises
+                # UnicodeDecodeError, which is not a JSONDecodeError and escaped the
+                # handler entirely. One stray binary file killed the whole scan.
+                # Both subclass ValueError.
                 try:rows.append(json.loads(line))
-                except json.JSONDecodeError:bad+=1
+                except ValueError:bad+=1
         if oversized:
             warnings.append(f'Skipped {oversized} oversized row(s), invocation trace may be incomplete: {path}')
             bad+=oversized
@@ -465,7 +507,7 @@ def inspect(project: Path, host: str, roots: list[Path], logs: list[Path], days=
                     budget+=len(line)
                     if len(line)>MAX_LINE_BYTES or len(rows)>=MAX_LOG_ROWS:continue
                     try:rows.append(json.loads(line))
-                    except json.JSONDecodeError:item['parse_errors']=item.get('parse_errors',0)+1
+                    except ValueError:item['parse_errors']=item.get('parse_errors',0)+1
             sub=normalize(rows,detected,str(helper.resolve()))
             for key in ('skill_attempts','confirmed_skill_loads','failed_skill_loads'):
                 item[key]=item.get(key,[])+sub.get(key,[])

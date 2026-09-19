@@ -690,3 +690,87 @@ class GapsThatWorked(unittest.TestCase):
     def test_no_gaps_means_no_coverage_note(self):
         result = self.scan([])
         self.assertEqual([f for f in result['findings'] if f['code'] == 'inventory_gap'], [])
+
+
+class HostileInput(unittest.TestCase):
+    """What a stranger's machine does to the scan. A crash is worse than
+    imprecision, and a silent skip is worse than both, because the user then
+    believes a smaller number than the one that was measured."""
+
+    def scan(self, build):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            skills = root / 'skills'
+            skills.mkdir()
+            logs = root / 'logs'
+            logs.mkdir()
+            build(skills, logs)
+            try:
+                return inspect(root / 'p', 'claude', [skills], [logs],
+                               days=365, explicit=True, scope='user')
+            finally:
+                for p in skills.rglob('*'):
+                    if p.is_dir():
+                        p.chmod(0o755)
+
+    def declare(self, path: Path, body: str):
+        path.mkdir(parents=True, exist_ok=True)
+        (path / 'SKILL.md').write_text(body)
+
+    def test_an_unreadable_directory_is_reported_as_a_bound(self):
+        """It was skipped in silence, so the user saw a smaller inventory than the
+        machine has with nothing on the page saying so."""
+        def build(skills, logs):
+            self.declare(skills / 'fine', '---\nname: fine\ndescription: d\n---\n')
+            self.declare(skills / 'locked', '---\nname: locked\ndescription: d\n---\n')
+            (skills / 'locked').chmod(0)
+        out = self.scan(build)
+        self.assertTrue(any('Could not read' in w for w in out['warnings']), out['warnings'])
+
+    def test_a_skill_md_without_frontmatter_is_flagged_not_counted_as_working(self):
+        def build(skills, logs):
+            self.declare(skills / 'broken', 'just some text, no frontmatter')
+            self.declare(skills / 'ok', '---\nname: ok\ndescription: d\n---\n')
+        out = self.scan(build)
+        by = {s['name']: s for s in out['skills']}
+        self.assertEqual(by['broken']['malformed'], ['no YAML frontmatter'])
+        self.assertIsNone(by['ok']['malformed'])
+
+    def test_a_missing_description_is_flagged_on_its_own(self):
+        """A skill with no description is the case where a good skill never gets
+        reached, because the description is what the agent reads when deciding."""
+        def build(skills, logs):
+            self.declare(skills / 'nodesc', '---\nname: nodesc\n---\n')
+        out = self.scan(build)
+        self.assertEqual(out['skills'][0]['malformed'], ['no description'])
+
+    def test_corrupt_and_oversized_transcripts_do_not_stop_the_scan(self):
+        def build(skills, logs):
+            self.declare(skills / 'ok', '---\nname: ok\ndescription: d\n---\n')
+            (logs / 'truncated.jsonl').write_text('{"type":"user","message":')
+            (logs / 'binary.jsonl').write_bytes(b'\x00\xff\xfe\x00\n')
+            (logs / 'empty.jsonl').write_text('')
+            (logs / 'huge.jsonl').write_text(
+                '{"type":"user","message":{"content":"' + 'x' * 900000 + '"}}\n')
+        out = self.scan(build)
+        self.assertEqual(len(out['skills']), 1)
+
+    def test_a_symlink_cycle_in_a_skill_root_terminates(self):
+        def build(skills, logs):
+            self.declare(skills / 'ok', '---\nname: ok\ndescription: d\n---\n')
+            (skills / 'loop').symlink_to(skills)
+        out = self.scan(build)
+        self.assertEqual({s['name'] for s in out['skills']}, {'ok'})
+
+
+class MalformedFinding(unittest.TestCase):
+    def test_an_unloadable_skill_is_a_confirmed_defect_with_the_fix_inline(self):
+        result = analyze({'schema_version': 'brain-surgery-inspection/0.3',
+                          'skills': [{'name': 'broken', 'aliases': ['broken'],
+                                      'path': '/x/broken/SKILL.md',
+                                      'malformed': ['no YAML frontmatter']}],
+                          'sessions': [{'turns': [1]}], 'inventory_gap': []})
+        hit = [f for f in result['findings'] if f['code'] == 'malformed'][0]
+        self.assertEqual(hit['confidence'], 'confirmed')
+        self.assertIn('name: broken', hit['fix'])
+        self.assertIn('/x/broken/SKILL.md', hit['fix'])

@@ -20,7 +20,8 @@ SCHEMA = 'brain-surgery-scan/0.1'
 
 # A finding is only emitted when the transcripts support it. Each carries the
 # evidence that produced it so the report can show its work.
-SEVERITY = {'load_failed': 3, 'shadowed': 2, 'inventory_gap': 2, 'duplicated': 1, 'dormant': 1}
+SEVERITY = {'malformed': 3, 'load_failed': 3, 'shadowed': 2, 'inventory_gap': 2,
+            'duplicated': 1, 'dormant': 1}
 
 #: How much weight a finding can carry, which is a different question from how
 #: alarming it sounds. Ordering the report by severity alone put "163 of your skills
@@ -34,6 +35,7 @@ SEVERITY = {'load_failed': 3, 'shadowed': 2, 'inventory_gap': 2, 'duplicated': 1
 #:   suspected    historical evidence only; the condition may already be gone
 #:   observation  true, and not necessarily anything to fix
 CONFIDENCE = {
+    'malformed': 'confirmed',      # the file is here and the frontmatter is not
     'shadowed': 'confirmed',       # two DIFFERENT files on disk today, both readable
     'duplicated': 'observation',   # same bytes twice; nothing behaves differently
     'load_failed': 'suspected',    # an error in a past transcript, not re-tested
@@ -245,6 +247,24 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
             'fix': (f'Check that `{name}` is on a path this host reads. The usual cause is a '
                     f'skill kept in a canonical store and never linked into the host root, '
                     f'which looks correct in a directory listing and is invisible to the agent.'),
+        })
+
+    # 2a. A SKILL.md the host cannot load at all. Confirmed by definition: the
+    #     file is on disk right now and the frontmatter it needs is not in it.
+    for entry in sorted((sk for sk in skills if sk.get('malformed')),
+                        key=lambda sk: sk['name']):
+        missing = entry['malformed']
+        findings.append({
+            'code': 'malformed',
+            'skill': entry['name'],
+            'title': f'{entry["name"]} is missing frontmatter it needs to load',
+            'detail': ('A host reads a skill through its YAML frontmatter. This file has '
+                       + ' and '.join(missing) + ', so it sits on disk looking installed '
+                       'and the agent will not load it.'),
+            'evidence': {'path': entry.get('path'), 'missing': missing},
+            'fix': ('Add the missing field(s) to the top of %s:\n'
+                    '---\nname: %s\ndescription: when to use this\n---'
+                    % (entry.get('path'), entry['name'])),
         })
 
     # 2. Two skill directories declaring the same name. One silently shadows the
