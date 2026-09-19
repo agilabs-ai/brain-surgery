@@ -174,6 +174,11 @@ li small{color:var(--muted)}
   padding:1px 9px;font-size:12px;font-variant-numeric:tabular-nums;margin-left:6px}
 summary{cursor:pointer;color:var(--muted);font-size:13px;list-style:revert}
 details ul{margin:8px 0 0}
+.bucket{display:inline-block;margin-left:8px;padding:1px 9px;border-radius:99px;
+  font-size:11px;font-weight:600;letter-spacing:.01em;vertical-align:2px;
+  border:1px solid var(--line);color:var(--muted)}
+.b-confirmed{background:var(--blue);border-color:var(--blue);color:#fff}
+.b-suspected{color:var(--ink)}
 .note{border-left:2px solid var(--blue);padding:2px 0 2px 14px;color:var(--muted);font-size:13px;margin:24px 0}
 footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -228,8 +233,15 @@ def groups_html(raw: dict[str, Any], local: bool) -> str:
         else:
             body = '<p class="sub" style="margin:0">%d skill%s affected. Names stay on the scanned machine.</p>' % (
                 affected, "" if affected == 1 else "s")
-        out.append('<div class="group"><h2>%s<span class="count">%d</span></h2><p>%s</p>%s</div>'
-                   % (html.escape(title), affected, html.escape(detail), body))
+        # The bucket on the group, so a reader scanning headings can tell what is
+        # reproducible now from what is a lead, without reading every finding.
+        bucket = next((f.get("confidence") for f in items if f.get("confidence")), None)
+        chip = ''
+        if bucket in BUCKETS:
+            label, _ = BUCKETS[bucket]
+            chip = '<span class="bucket b-%s">%s</span>' % (bucket, html.escape(label))
+        out.append('<div class="group"><h2>%s<span class="count">%d</span>%s</h2><p>%s</p>%s</div>'
+                   % (html.escape(title), affected, chip, html.escape(detail), body))
     return "".join(out)
 
 
