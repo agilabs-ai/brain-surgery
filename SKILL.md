@@ -20,7 +20,9 @@ Use the already-authorized project and configured model provider. Tell the user,
 
 > I’ll inspect a bounded slice of your recent work and installed skills, test changes in isolation, and open a local report. Model usage applies. Nothing is changed or shared automatically.
 
-Do **not** show speed/deep modes, require an account, ask for a profile, or make the user choose workflows if permitted logs already reveal recurring work.
+Do **not** require an account, ask for a profile, or make the user choose workflows if permitted logs already reveal recurring work.
+
+This is about not putting a configuration screen in front of someone who came for a result. It is not a ban on the product ever comparing two of its own modes: that comparison is the skill measuring itself against itself on the user's own work, which is a legitimate experiment. What stays out is a foreign benchmark, and a mode chooser at the door.
 
 If a required permission, safe replay boundary, or enforceable budget is missing, ask only for that missing prerequisite. Never bypass host permissions.
 
@@ -49,11 +51,13 @@ Default scan boundary:
 - up to 30 of those sessions are read deeply in step 3 to pick task families; the inventory pass itself reads the full window
 - no external skill search in v0
 
-Do not lower the read limits to save time. A cap that binds moves the headline with the cap rather than with the setup: measured on one real machine, a 4GB read budget reported 87 percent dormant where the complete pass reports 81, and lifting it cost no time, because the wall clock is directory walking rather than reading. A full pass over 9GB of transcripts and 302 sessions took 71 seconds. When the pass could not read everything, the report says so and states the counts as bounds.
+Do not lower the read limits to save time. A cap that binds moves the headline with the cap rather than with the setup: measured on one real machine, a 4GB read budget reported 87 percent dormant where the complete pass reports 81, and lifting it cost no time, because the wall clock is directory walking rather than reading. A full pass over 346 sessions on that machine takes under two minutes. When the pass could not read everything, the report says so and states the counts as bounds.
 
 `reached + dormant` always equals `installed`. Skills that load from outside the scanned roots are reported separately and never folded into either side. An attempted load with no matching result is neither a success nor a failure; only an explicit error is a failed load. If no transcripts were read, say so loudly, because an empty scan is the one result that must never read as a clean bill of health.
 
-Parse logs locally before sending excerpts to a configured cloud model. Group a request and its corrections into one task episode. Exclude Brain Surgery/evaluation sessions from normal-usage evidence.
+Parse logs locally before sending excerpts to a configured cloud model. Group a request and its corrections into one task episode.
+
+Evaluation sessions are excluded from usage evidence, by `is_harness_session`, keyed on a working directory under a system temp root. This is not optional hygiene: before it existed, the grid harness's own agent children accounted for 13 of 22 findings on a real machine, because they load synthetic skills that live outside any scanned root and every one came back as "loaded but not found on disk". The scan was reporting its own fixtures as faults in the user's setup. The exclusion is skipped when that temp directory *is* the project being scanned, since scanning a project that lives under `/tmp` is a real thing to do.
 
 Use real task evidence to answer:
 
@@ -121,7 +125,7 @@ Writes `local-report.html`, `public-report.html`, `social-card.svg`, `public-sum
 
 `python3 scripts/brain_surgery.py render` delegates to `render_report.py`, so it is the comparison renderer under another name. Never point it at scan findings.
 
-`render_scan.py` refuses a scan whose `totals.measured` is false, which means no transcript was read. Do not route around that. Report to the user that the scan read no sessions and that this is not a clean bill of health.
+When `totals.measured` is false, meaning no transcript was read, `render_scan.py` still writes a report and that report leads with "Nothing was measured". It does not print a dormancy percentage, because with no sessions every skill trivially looks dormant and the most alarming possible headline would be invented out of nothing. Do not present that page as a clean bill of health: say plainly that the scan read no sessions.
 
 ### Open the local report
 
@@ -137,7 +141,13 @@ Use `local-report.html` instead when the comparison path ran. Open the **local**
 
 The local and public outputs intentionally show almost the same visible summary. Public output is built from a smaller allowlisted data object; private task text, prompts, paths, skill contents, and private skill names must not be present in the public HTML source.
 
-Scan report: lead with **installed capability versus capability the agent actually reached**, over the window that was read. A real run on one machine reported 191 skills installed, 13 reached, 93 percent dormant, 2 failed loads and 5 shadowed by name collision, read from 3,406 turns across 40 sessions in 30 days. Counts are for the scanned window. A skill with no recorded load was not reached in that window, which is not proof it is never used. Say that a scan measures reach, not quality: it did not test whether any setup change helps.
+Scan report: **lead with what is confirmed broken, not with dormancy.** Dormancy is not a defect. Most skills a person installs are for work they do not do, and a clean new install produces one finding, "80 percent dormant", which would tell a new user their setup is broken when nothing is wrong with it.
+
+Findings carry a confidence bucket and the report is ordered by it: `confirmed` is reproducible on disk right now, `suspected` rests on a past transcript that was not re-tested, `observation` is true and not necessarily anything to fix. A higher-severity suspected finding still sits below a confirmed one, because the reader can act on one today and can only guess about the other.
+
+A real run on one machine, after the precision work, reported **no confirmed defects, two things worth checking and four observations**, from 205 installed and 41 reached. The same machine previously reported 27 findings, of which 21 were false: the scan's own evaluation sessions counted as usage, host-bundled skills reported as missing, byte-identical copies called collisions, and load failures reported without re-testing whether they still reproduce.
+
+Counts are for the scanned window. A skill with no recorded load was not reached in that window, which is not proof it is never used. Say that a scan measures reach, not quality: it did not test whether any setup change helps.
 
 Comparison report: lead with **measured current versus tested task pass rate**. The report may say that the tested setup recovered X percentage points **on the tested tasks**. Do not call this “percent of theoretical AI potential.”
 

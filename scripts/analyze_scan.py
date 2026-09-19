@@ -37,7 +37,7 @@ CONFIDENCE = {
     'shadowed': 'confirmed',       # two DIFFERENT files on disk today, both readable
     'duplicated': 'observation',   # same bytes twice; nothing behaves differently
     'load_failed': 'suspected',    # an error in a past transcript, not re-tested
-    'inventory_gap': 'suspected',  # may be host-bundled and have no path at all
+    'inventory_gap': 'observation', # it loaded and worked; only our inventory missed it
     'dormant': 'observation',
     'no_evidence': 'observation',
 }
@@ -242,6 +242,9 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
                       'and the load returned an error, so the work continued without it.',
             'evidence': {'attempts': attempts.get(name, 0), 'confirmed_loads': loads.get(name, 0),
                          'failed': count},
+            'fix': (f'Check that `{name}` is on a path this host reads. The usual cause is a '
+                    f'skill kept in a canonical store and never linked into the host root, '
+                    f'which looks correct in a directory listing and is invisible to the agent.'),
         })
 
     # 2. Two skill directories declaring the same name. One silently shadows the
@@ -290,11 +293,42 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
             'evidence': {'paths': sorted(paths),
                          'identical': identical,
                          'digests': sorted({d for d in digests if d})},
+            'fix': (f'Nothing to do today. If you edit one copy, mirror it or replace the '
+                    f'second with a symlink to the first, so they cannot drift apart:\n'
+                    f'  ln -sfn {sorted(paths)[0]!s} {sorted(paths)[1]!s}'
+                    if identical else
+                    f'Diff them and keep one:\n  diff {sorted(paths)[0]!s} {sorted(paths)[1]!s}'),
         })
 
     # 3. A skill the transcripts show loading that the inventory never saw. Means
     #    a skill root is missing, so the rest of the scan is under-counting.
-    for name in data.get('inventory_gap', []):
+    # A gap where the load SUCCEEDED is not the user's problem: the skill loaded
+    # and worked. What failed is our inventory, which could not see where it came
+    # from. Over a 90-day window that produced 37 "worth checking" findings on a
+    # real machine, every one a skill that ran fine, mostly plugins installed and
+    # removed inside one week. Churn reported as breakage.
+    #
+    # A gap whose loads errored is a different thing and already has its own code.
+    # So this collapses to one coverage note naming the count, and the names stay
+    # in the evidence for anyone who wants them.
+    gap_names = [n for n in data.get('inventory_gap', []) if not failures.get(n)]
+    if gap_names:
+        findings.append({
+            'code': 'inventory_gap',
+            'skill': None,
+            'title': (f'{len(gap_names)} skills loaded from somewhere this scan did not look'
+                      if len(gap_names) > 1 else
+                      f'{gap_names[0]} loaded from somewhere this scan did not look'),
+            'detail': ('These ran without error, so nothing about them is broken. They just '
+                       'are not in any root that was scanned, which usually means a plugin, '
+                       'a host-bundled skill, or something installed and removed since. It '
+                       'means the counts above are a floor, not that you have a problem.'),
+            'evidence': {'names': sorted(gap_names),
+                         'loads': {n: loads.get(n, 0) for n in sorted(gap_names)}},
+            'fix': ('Nothing, unless you expected to find them locally. Point the scan at the '
+                    'missing root with --skill-root to fold them into the counts.'),
+        })
+    for name in [n for n in data.get('inventory_gap', []) if failures.get(n)]:
         findings.append({
             'code': 'inventory_gap',
             'skill': name,
@@ -304,6 +338,10 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
                       'moved or removed since it last ran. Only the second is something to '
                       'fix; either way the counts below are a floor, not a ceiling.',
             'evidence': {'confirmed_loads': loads.get(name, 0)},
+            'fix': (f'`{name}` ran recently and no scanned root holds it now. Either it was '
+                    f'removed since, in which case nothing references it any more and this '
+                    f'will stop appearing, or it lives in a root this scan was not pointed '
+                    f'at, which you can add with --skill-root.'),
         })
 
     # 4. The headline. Installed capability the agent never reached.
@@ -320,6 +358,10 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
                       'not load them once.',
             'evidence': {'installed': len(installed), 'reached': len(reached),
                          'dormant': len(dormant), 'names': dormant},
+            # Deliberately no fix. Not using a skill is not a defect, and suggesting
+            # people delete skills they have not needed yet is advice this scan has
+            # no evidence for.
+            'fix': None,
         })
     elif installed:
         findings.append({

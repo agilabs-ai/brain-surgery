@@ -45,8 +45,9 @@ GROUPS = {
     "duplicated": ("Stored in two places, identically",
                    "The same skill, byte for byte, in two roots. Nothing is broken: whichever loads, "
                    "you get the same thing. It matters only when you edit one and forget the other."),
-    "inventory_gap": ("Skills loaded from outside the inventory",
-                      "Your agent loaded these from somewhere this scan could not see, so their contents were never checked."),
+    "inventory_gap": ("Loaded from somewhere this scan did not look",
+                      "These ran without error. They are simply not in a root that was scanned, "
+                      "usually a plugin or a host-bundled skill, so the counts above are a floor."),
     "dormant": ("Installed and never reached",
                 "Present on the machine, not loaded once in the scanned window."),
     "no_evidence": ("No sessions were read in this window",
@@ -174,6 +175,10 @@ li small{color:var(--muted)}
   padding:1px 9px;font-size:12px;font-variant-numeric:tabular-nums;margin-left:6px}
 summary{cursor:pointer;color:var(--muted);font-size:13px;list-style:revert}
 details ul{margin:8px 0 0}
+.fix{margin:7px 0 2px;padding:8px 11px;background:var(--line);border-radius:6px;
+  font-size:12.5px;color:var(--ink);line-height:1.5}
+.fix code{display:block;margin-top:6px;font:12px/1.5 SFMono-Regular,ui-monospace,Menlo,monospace;
+  color:var(--muted);overflow-wrap:anywhere}
 .bucket{display:inline-block;margin-left:8px;padding:1px 9px;border-radius:99px;
   font-size:11px;font-weight:600;letter-spacing:.01em;vertical-align:2px;
   border:1px solid var(--line);color:var(--muted)}
@@ -208,8 +213,18 @@ def groups_html(raw: dict[str, Any], local: bool) -> str:
             for f in items:
                 name = f.get("skill")
                 if name:
-                    rows.append("<li>%s<small> &middot; %s</small></li>"
-                                % (html.escape(str(name)), clamp(f.get("detail", ""))))
+                    # The fix, on the page. A next step that only exists in the
+                    # embedded JSON is a next step nobody takes, and a finding
+                    # without one is homework rather than a diagnosis.
+                    fix = str(f.get("fix") or "").strip()
+                    fix_html = ""
+                    if fix:
+                        head, _, cmd = fix.partition("\n")
+                        fix_html = '<div class="fix">%s%s</div>' % (
+                            html.escape(head),
+                            '<code>%s</code>' % html.escape(cmd.strip()) if cmd.strip() else "")
+                    rows.append("<li>%s<small> &middot; %s</small>%s</li>"
+                                % (html.escape(str(name)), clamp(f.get("detail", "")), fix_html))
                     continue
                 # A whole-setup finding names no single skill. Rendering a
                 # placeholder there produced a one-item list reading "your setup"

@@ -645,3 +645,48 @@ class CodexInvocation(unittest.TestCase):
         out = self.scan(['{"cmd":"cat skills/wa/SKILL.md"}'])
         attempt = out['sessions'][0]['skill_attempts'][0]
         self.assertTrue(attempt.get('at'))
+
+
+class GapsThatWorked(unittest.TestCase):
+    """A skill that loaded successfully is not a defect just because the inventory
+    could not find its file. Over a 90-day window that produced 37 "worth checking"
+    findings on a real machine, every one a skill that ran fine: mostly plugins
+    installed and removed inside a week. Churn reported as breakage."""
+
+    def scan(self, gap, failed=()):
+        sessions = [{'skill_attempts': [{'name': n} for n in gap],
+                     'confirmed_skill_loads': [{'name': n} for n in gap if n not in failed],
+                     'failed_skill_loads': [{'name': n} for n in failed],
+                     'turns': [1]}]
+        return analyze({'schema_version': 'brain-surgery-inspection/0.3',
+                        'skills': [{'name': 'present', 'aliases': ['present'],
+                                    'path': '/x/present/SKILL.md'}],
+                        'sessions': sessions, 'inventory_gap': list(gap)})
+
+    def test_gaps_that_loaded_cleanly_collapse_to_one_coverage_note(self):
+        result = self.scan(['a', 'b', 'c'])
+        gaps = [f for f in result['findings'] if f['code'] == 'inventory_gap']
+        self.assertEqual(len(gaps), 1)
+        self.assertIsNone(gaps[0]['skill'])
+        self.assertEqual(gaps[0]['confidence'], 'observation')
+        self.assertEqual(gaps[0]['evidence']['names'], ['a', 'b', 'c'])
+
+    def test_a_gap_whose_loads_errored_stays_a_real_finding(self):
+        """That one is a real problem: the agent reached for it and got nothing
+        back. It keeps a per-skill finding rather than vanishing into the coverage
+        note, and root-cause deduplication then reports the failure and the gap as
+        one thing, since they are one thing."""
+        result = self.scan(['a', 'broken'], failed=['broken'])
+        hits = [f for f in result['findings'] if f.get('skill') == 'broken']
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0]['code'], 'load_failed')
+        self.assertEqual(hits[0]['confidence'], 'suspected')
+        self.assertIn('inventory_gap', hits[0].get('also_reported_as', []))
+        # And the clean gap is still summarised separately.
+        note = [f for f in result['findings']
+                if f['code'] == 'inventory_gap' and f['skill'] is None]
+        self.assertEqual(note[0]['evidence']['names'], ['a'])
+
+    def test_no_gaps_means_no_coverage_note(self):
+        result = self.scan([])
+        self.assertEqual([f for f in result['findings'] if f['code'] == 'inventory_gap'], [])
