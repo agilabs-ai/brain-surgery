@@ -253,18 +253,21 @@ def inventory(roots: list[Path]) -> dict[str,Any]:
             # skill twice: once as loaded-but-missing-from-disk, once as dormant.
             # One key mismatch, two findings, both wrong.
             declared=h.get('name')
-            # A host needs YAML frontmatter with a name and a description to load a
-            # skill. A SKILL.md missing them was still counted as installed, which
-            # inflates the denominator of every ratio on the page with a file the
-            # agent will never load. Recorded rather than dropped: the directory is
-            # really there, and telling the user it is malformed is more useful than
-            # quietly not counting it.
-            malformed=[]
-            if not text.lstrip().startswith('---'):
-                malformed.append('no YAML frontmatter')
-            else:
-                if not declared:malformed.append('no name')
-                if not h.get('description'):malformed.append('no description')
+            # Only the description is load-bearing, and not for loading.
+            #
+            # An earlier version flagged a missing `name` or missing frontmatter as
+            # "cannot load". That is false, and it was checked the wrong way round:
+            # `~/.claude/skills/chrome-cdp-skill/SKILL.md` has no frontmatter at all
+            # and was invoked eight times through the Skill tool, because the host
+            # addresses a skill by its directory name. A `name` field is optional
+            # and its absence breaks nothing.
+            #
+            # A missing description is different and still worth saying. The
+            # description is what the agent reads when deciding whether to open a
+            # skill, so without one the skill can still be called by name and has
+            # nothing for the agent to match a task against. That is the failure
+            # TASK_SPEC.md names: how a good skill never gets reached.
+            malformed=[] if h.get('description') else ['no description']
             result.append({
                 'malformed':malformed or None,'local_id':hashlib.sha256(str(p.resolve()).encode()).hexdigest()[:16],
                 'name':p.parent.name,

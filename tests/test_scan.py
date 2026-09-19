@@ -727,22 +727,29 @@ class HostileInput(unittest.TestCase):
         out = self.scan(build)
         self.assertTrue(any('Could not read' in w for w in out['warnings']), out['warnings'])
 
-    def test_a_skill_md_without_frontmatter_is_flagged_not_counted_as_working(self):
+    def test_a_missing_name_is_not_a_fault(self):
+        """The host addresses a skill by its directory name, so a `name` field is
+        optional. `~/.claude/skills/chrome-cdp-skill/SKILL.md` has no frontmatter
+        at all and was invoked eight times through the Skill tool, which is how the
+        first version of this check was caught claiming the opposite."""
         def build(skills, logs):
-            self.declare(skills / 'broken', 'just some text, no frontmatter')
+            self.declare(skills / 'noname', '---\ndescription: d\n---\n')
+        out = self.scan(build)
+        self.assertIsNone(out['skills'][0]['malformed'])
+
+    def test_a_missing_description_is_flagged(self):
+        """The description is what the agent reads when deciding whether a skill
+        fits the task, so without one the skill can only be called by name. That is
+        how a good skill sits installed and never gets reached."""
+        def build(skills, logs):
+            self.declare(skills / 'nodesc', '---\nname: nodesc\n---\n')
+            self.declare(skills / 'bare', 'no frontmatter at all')
             self.declare(skills / 'ok', '---\nname: ok\ndescription: d\n---\n')
         out = self.scan(build)
         by = {s['name']: s for s in out['skills']}
-        self.assertEqual(by['broken']['malformed'], ['no YAML frontmatter'])
+        self.assertEqual(by['nodesc']['malformed'], ['no description'])
+        self.assertEqual(by['bare']['malformed'], ['no description'])
         self.assertIsNone(by['ok']['malformed'])
-
-    def test_a_missing_description_is_flagged_on_its_own(self):
-        """A skill with no description is the case where a good skill never gets
-        reached, because the description is what the agent reads when deciding."""
-        def build(skills, logs):
-            self.declare(skills / 'nodesc', '---\nname: nodesc\n---\n')
-        out = self.scan(build)
-        self.assertEqual(out['skills'][0]['malformed'], ['no description'])
 
     def test_corrupt_and_oversized_transcripts_do_not_stop_the_scan(self):
         def build(skills, logs):
@@ -763,17 +770,21 @@ class HostileInput(unittest.TestCase):
         self.assertEqual({s['name'] for s in out['skills']}, {'ok'})
 
 
-class MalformedFinding(unittest.TestCase):
-    def test_an_unloadable_skill_is_a_confirmed_defect_with_the_fix_inline(self):
+class NoDescriptionFinding(unittest.TestCase):
+    def test_it_claims_untriggerable_not_unloadable(self):
+        """The claim has to match the evidence. A skill with no description still
+        loads when named; what it cannot do is get chosen."""
         result = analyze({'schema_version': 'brain-surgery-inspection/0.3',
-                          'skills': [{'name': 'broken', 'aliases': ['broken'],
-                                      'path': '/x/broken/SKILL.md',
-                                      'malformed': ['no YAML frontmatter']}],
+                          'skills': [{'name': 'quiet', 'aliases': ['quiet'],
+                                      'path': '/x/quiet/SKILL.md',
+                                      'malformed': ['no description']}],
                           'sessions': [{'turns': [1]}], 'inventory_gap': []})
-        hit = [f for f in result['findings'] if f['code'] == 'malformed'][0]
+        hit = [f for f in result['findings'] if f['code'] == 'no_description'][0]
         self.assertEqual(hit['confidence'], 'confirmed')
-        self.assertIn('name: broken', hit['fix'])
-        self.assertIn('/x/broken/SKILL.md', hit['fix'])
+        self.assertIn('nothing triggers it', hit['title'])
+        self.assertNotIn('will not load', hit['detail'])
+        self.assertIn('/x/quiet/SKILL.md', hit['fix'])
+        self.assertIn('description:', hit['fix'])
 
 
 class HostDetection(unittest.TestCase):
