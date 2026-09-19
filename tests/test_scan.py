@@ -781,10 +781,32 @@ class NoDescriptionFinding(unittest.TestCase):
                           'sessions': [{'turns': [1]}], 'inventory_gap': []})
         hit = [f for f in result['findings'] if f['code'] == 'no_description'][0]
         self.assertEqual(hit['confidence'], 'confirmed')
-        self.assertIn('nothing triggers it', hit['title'])
+        self.assertIn('nothing can trigger it', hit['title'])
         self.assertNotIn('will not load', hit['detail'])
+        self.assertIn('never loaded', hit['detail'])
         self.assertIn('/x/quiet/SKILL.md', hit['fix'])
         self.assertIn('description:', hit['fix'])
+
+    def test_it_distinguishes_never_loaded_from_loaded_only_when_named(self):
+        """Both were on one real machine and they are different problems.
+        chrome-cdp-skill had loaded 8 times, every one because something named it;
+        phase-b-e2e-skill had never run. One line for both tells neither reader
+        what to do."""
+        base = {'schema_version': 'brain-surgery-inspection/0.3',
+                'skills': [{'name': 'named', 'aliases': ['named'],
+                            'path': '/x/named/SKILL.md', 'malformed': ['no description']}],
+                'inventory_gap': []}
+        used = analyze(dict(base, sessions=[{
+            'skill_attempts': [{'name': 'named'}] * 3,
+            'confirmed_skill_loads': [{'name': 'named'}] * 3, 'turns': [1]}]))
+        hit = [f for f in used['findings'] if f['code'] == 'no_description'][0]
+        self.assertIn('loaded 3 times', hit['detail'])
+        self.assertEqual(hit['evidence']['loads'], 3)
+
+        never = analyze(dict(base, sessions=[{'turns': [1]}]))
+        hit = [f for f in never['findings'] if f['code'] == 'no_description'][0]
+        self.assertIn('never loaded', hit['detail'])
+        self.assertEqual(hit['evidence']['loads'], 0)
 
 
 class HostDetection(unittest.TestCase):

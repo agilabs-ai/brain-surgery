@@ -282,8 +282,8 @@ def inventory(roots: list[Path]) -> dict[str,Any]:
                         % (len(unreadable), ', '.join(sorted(set(unreadable))[:5])))
     bad=[x for x in result if x.get('malformed')]
     if bad:
-        warnings.append('%d SKILL.md file(s) are missing required frontmatter and may not '
-                        'load at all: %s' % (len(bad), ', '.join(sorted(x['name'] for x in bad)[:5])))
+        warnings.append('%d skill(s) have no description, so the agent has nothing to match '
+                        'a task against: %s' % (len(bad), ', '.join(sorted(x['name'] for x in bad)[:5])))
     return {'skills':result,'warnings':warnings}
 
 
