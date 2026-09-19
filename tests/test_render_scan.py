@@ -530,3 +530,33 @@ def test_a_user_scoped_scan_says_nothing_about_scope(scan, out):
     scan["coverage"]["scope"] = "user"
     _, _, local, _ = rendered(scan, out)
     assert "Scope was one project" not in local
+
+
+def test_a_hostile_skill_name_cannot_inject_markup(scan, out):
+    """Skill names are directory names and they do reach the page, so a directory
+    called `<img src=x onerror=...>` is a real input. Descriptions are never
+    rendered at all, which is why hostile frontmatter has no path to the page."""
+    scan["findings"] = [{
+        "code": "duplicated", "skill": '<img src=x onerror=alert(1)>',
+        "confidence": "observation",
+        "title": 'a <script>alert(2)</script> b',
+        "detail": 'detail with <b>markup</b>',
+        "fix": 'run this:\nrm -rf "<script>alert(3)</script>"',
+        "evidence": {"paths": ["/a/SKILL.md", "/b/SKILL.md"], "identical": True,
+                     "digests": ["x"]},
+    }]
+    _, _, local, _ = rendered(scan, out)
+    for raw in ('<img src=x', '<script>alert(2)', '<b>markup</b>', '<script>alert(3)'):
+        assert raw not in local, raw
+    assert '&lt;' in local
+
+
+def test_the_renderer_never_emits_a_skill_description(scan, out):
+    """A description is free text the user never sees on the page, so it is not an
+    injection surface. If that changes, this test is the place it gets noticed."""
+    import re
+    source = (Path(__file__).resolve().parents[1] / 'scripts' / 'render_scan.py').read_text()
+    # Reading the field, not the word: the page carries a static
+    # <meta name="description"> tag, which is ours and not a skill's.
+    pattern = r"""\.get\(\s*['"]description['"]|\[\s*['"]description['"]\s*\]"""
+    assert re.findall(pattern, source) == []
