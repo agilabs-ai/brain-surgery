@@ -10,6 +10,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from checklib import fail, report as emit, section  # noqa: E402
+
 DASH = re.compile(r'[—–]|&mdash;|&ndash;|&#8212;|&#8211;|&#x2014;|&#x2013;', re.I)
 
 # Words that must survive the restyle, in their original casing. Hand-uppercasing
@@ -26,11 +29,6 @@ KEEP = [
 ]
 
 CODEISH = re.compile(r'\b(code|pre|kbd|samp|tt)\b')
-
-
-def fail(msg):
-    print(msg)
-    sys.exit(1)
 
 
 def strip_comments(css):
@@ -104,63 +102,98 @@ def font_px(d):
 def main():
     ws = Path(sys.argv[1])
     f = ws / 'page.html'
-    if not f.exists():
-        fail('page.html missing')
-    html = f.read_text(encoding='utf-8', errors='replace')
-    if len(html.strip()) < 400:
-        fail(f'page.html is only {len(html.strip())} chars; the page was gutted rather than restyled')
-
-    for s in KEEP:
-        if s not in html:
-            fail(f'content was dropped or re-cased: {s!r} is no longer in page.html')
-
-    m = DASH.search(html)
-    if m:
-        i = m.start()
-        fail(f'em/en dash at offset {i}: ...{html[max(0, i - 40):i + 40]!r}')
-
+    # The page is read once, outside the sections, so each rule below can report a
+    # missing page itself instead of passing on an empty string.
+    html = f.read_text(encoding='utf-8', errors='replace') if f.exists() else ''
     css = ' '.join(strip_comments(s) for s in re.findall(r'<style[^>]*>(.*?)</style>', html, re.S | re.I))
-    if 'font-family' not in css:
-        fail('no font-family left in page.html; the stylesheet was deleted instead of fixed')
-    blocks = declaration_blocks(css)
-    if len(blocks) < 8:
-        fail(f'only {len(blocks)} CSS rules left; the stylesheet was deleted instead of fixed')
+    blocks = [(sel, decls(body)) for sel, body in declaration_blocks(css)]
+    inline = [(m.group(1), decls(m.group(1))) for m in re.finditer(r'style\s*=\s*"([^"]*)"', html, re.I)]
 
-    for sel, body in blocks:
-        d = decls(body)
+    # Outcome: the prompt hands over one file that "goes live tomorrow"; losing it or
+    # gutting it is the failure any careful agent avoids unprompted.
+    with section('page-intact', 'outcome'):
+        if not f.exists():
+            fail('page.html missing')
+        if len(html.strip()) < 400:
+            fail(f'page.html is only {len(html.strip())} chars; the page was gutted rather than restyled')
 
-        if d.get('text-transform') == 'uppercase':
-            fail(f'text-transform: uppercase on selector {sel!r}')
+    # Outcome: "The wording stays as it is" is the prompt, in those words, and that
+    # includes the original casing of the labels.
+    with section('wording-unchanged', 'outcome'):
+        if not f.exists():
+            fail('page.html missing')
+        for s in KEEP:
+            if s not in html:
+                fail(f'content was dropped or re-cased: {s!r} is no longer in page.html')
 
-        fam = d.get('font-family', '')
-        if 'mono' in fam:
-            parts = [p.strip() for p in sel.split(',') if p.strip()]
-            offenders = [p for p in parts if not CODEISH.search(p)]
-            if offenders:
-                fail(f'monospace font-family on non-code selector {offenders[0]!r}: {fam!r}')
+    # Outcome: a visual pass that deletes the stylesheet has not restyled anything.
+    with section('stylesheet-intact', 'outcome'):
+        if not f.exists():
+            fail('page.html missing')
+        if 'font-family' not in css:
+            fail('no font-family left in page.html; the stylesheet was deleted instead of fixed')
+        if len(blocks) < 8:
+            fail(f'only {len(blocks)} CSS rules left; the stylesheet was deleted instead of fixed')
 
-        if 'letter-spacing' in d:
-            size = font_px(d)
-            ls = length_em(d['letter-spacing'], size or 16)
-            if ls is None:
-                fail(f'unparseable letter-spacing {d["letter-spacing"]!r} on {sel!r}')
-            if ls > 0.02 and (size is None or size < 24):
-                shown = f'{size:.0f}px' if size else 'unset'
-                fail(f'letter-spacing {d["letter-spacing"]!r} (> 0.02em) on {sel!r} at font-size {shown}')
+    # Convention: HR-1. The prompt is about how the page looks and never mentions
+    # punctuation, and the seeded page ships with the dashes already in it.
+    with section('no-em-dash', 'convention'):
+        if not f.exists():
+            fail('page.html missing')
+        m = DASH.search(html)
+        if m:
+            i = m.start()
+            fail(f'em/en dash at offset {i}: ...{html[max(0, i - 40):i + 40]!r}')
 
-    for m2 in re.finditer(r'style\s*=\s*"([^"]*)"', html, re.I):
-        d = decls(m2.group(1))
-        if d.get('text-transform') == 'uppercase':
-            fail(f'inline text-transform: uppercase in style attribute {m2.group(1)!r}')
-        if 'letter-spacing' in d:
-            ls = length_em(d['letter-spacing'], font_px(d) or 16)
-            if ls is not None and ls > 0.02 and (font_px(d) or 0) < 24:
-                fail(f'inline letter-spacing {d["letter-spacing"]!r} (> 0.02em) in style attribute')
-        if 'mono' in d.get('font-family', ''):
-            fail(f'inline monospace font-family in style attribute {m2.group(1)!r}')
+    # Convention: HR-7. "stop looking generic" does not tell you which tell to remove;
+    # that uppercased micro-labels specifically are banned is only in the skill.
+    with section('no-uppercase-transform', 'convention'):
+        if not f.exists():
+            fail('page.html missing')
+        for sel, d in blocks:
+            if d.get('text-transform') == 'uppercase':
+                fail(f'text-transform: uppercase on selector {sel!r}')
+        for raw, d in inline:
+            if d.get('text-transform') == 'uppercase':
+                fail(f'inline text-transform: uppercase in style attribute {raw!r}')
 
-    print('ok')
-    sys.exit(0)
+    # Convention: HR-7 again. Monospace outside code is a named house ban, not something
+    # the prompt asks for or a careful agent would infer.
+    with section('no-mono-on-prose', 'convention'):
+        if not f.exists():
+            fail('page.html missing')
+        for sel, d in blocks:
+            fam = d.get('font-family', '')
+            if 'mono' in fam:
+                parts = [p.strip() for p in sel.split(',') if p.strip()]
+                offenders = [p for p in parts if not CODEISH.search(p)]
+                if offenders:
+                    fail(f'monospace font-family on non-code selector {offenders[0]!r}: {fam!r}')
+        for raw, d in inline:
+            if 'mono' in d.get('font-family', ''):
+                fail(f'inline monospace font-family in style attribute {raw!r}')
+
+    # Convention: the 0.02em ceiling below 24px is a numeric house threshold; nothing in
+    # the prompt or the workspace states it.
+    with section('letter-spacing-restrained', 'convention'):
+        if not f.exists():
+            fail('page.html missing')
+        for sel, d in blocks:
+            if 'letter-spacing' in d:
+                size = font_px(d)
+                ls = length_em(d['letter-spacing'], size or 16)
+                if ls is None:
+                    fail(f'unparseable letter-spacing {d["letter-spacing"]!r} on {sel!r}')
+                if ls > 0.02 and (size is None or size < 24):
+                    shown = f'{size:.0f}px' if size else 'unset'
+                    fail(f'letter-spacing {d["letter-spacing"]!r} (> 0.02em) on {sel!r} at font-size {shown}')
+        for raw, d in inline:
+            if 'letter-spacing' in d:
+                ls = length_em(d['letter-spacing'], font_px(d) or 16)
+                if ls is not None and ls > 0.02 and (font_px(d) or 0) < 24:
+                    fail(f'inline letter-spacing {d["letter-spacing"]!r} (> 0.02em) in style attribute')
+
+    emit()
 
 
 main()
