@@ -3229,6 +3229,153 @@
       ]
     }
   },
+  "cost": {
+    "A": {
+      "runs": 72,
+      "passes": 1,
+      "billed_per_run": 14500,
+      "output_per_run": 2202,
+      "turns_per_run": 6.9,
+      "seconds_per_run": 23.5,
+      "billed_per_pass": 1044015
+    },
+    "B": {
+      "runs": 72,
+      "passes": 53,
+      "billed_per_run": 15339,
+      "output_per_run": 2816,
+      "turns_per_run": 9.8,
+      "seconds_per_run": 28.2,
+      "billed_per_pass": 20839
+    },
+    "C": {
+      "runs": 72,
+      "passes": 2,
+      "billed_per_run": 18912,
+      "output_per_run": 3381,
+      "turns_per_run": 7.2,
+      "seconds_per_run": 39.3,
+      "billed_per_pass": 680846
+    },
+    "D": {
+      "runs": 72,
+      "passes": 65,
+      "billed_per_run": 17804,
+      "output_per_run": 2482,
+      "turns_per_run": 8.8,
+      "seconds_per_run": 29.2,
+      "billed_per_pass": 19721
+    }
+  },
+  "tasks_index": {
+    "cloud-spend-audit": {
+      "skill": "bso-spend-audit",
+      "workflow": "spreadsheets"
+    },
+    "credential-store-update": {
+      "skill": "bso-credential-record",
+      "workflow": "other"
+    },
+    "design-slop-fix": {
+      "skill": "bsd-visual-house-style",
+      "workflow": "design"
+    },
+    "disk-reclaim-report": {
+      "skill": "bso-reclaim-report",
+      "workflow": "other"
+    },
+    "first-comment-link": {
+      "skill": "bsw-first-comment-link",
+      "workflow": "other"
+    },
+    "history-rollup-brief": {
+      "skill": "bsr-rollup-brief",
+      "workflow": "writing"
+    },
+    "metrics-checkin-note": {
+      "skill": "bsw-metrics-note",
+      "workflow": "research"
+    },
+    "open-artifact-locally": {
+      "skill": "bsd-durable-artifact-path",
+      "workflow": "writing"
+    },
+    "outreach-message-draft": {
+      "skill": "bsw-outreach-message",
+      "workflow": "writing"
+    },
+    "paired-run-verdict": {
+      "skill": "bsr-paired-verdict",
+      "workflow": "research"
+    },
+    "post-draft-and-schedule": {
+      "skill": "bsw-social-post-format",
+      "workflow": "writing"
+    },
+    "preview-sheet-html": {
+      "skill": "bsd-review-sheet",
+      "workflow": "design"
+    },
+    "prior-draft-recall": {
+      "skill": "bsr-artifact-recall",
+      "workflow": "research"
+    },
+    "product-page-metadata": {
+      "skill": "bsw-page-metadata",
+      "workflow": "coding"
+    },
+    "progress-board-rollup": {
+      "skill": "bsr-progress-board",
+      "workflow": "writing"
+    },
+    "queue-cadence-cap": {
+      "skill": "bsw-queue-cadence",
+      "workflow": "other"
+    },
+    "session-readonly-inspect": {
+      "skill": "bso-readonly-inspect",
+      "workflow": "research"
+    },
+    "shipped-render-locate": {
+      "skill": "bsr-archive-lookup",
+      "workflow": "research"
+    },
+    "skill-page-qa": {
+      "skill": "bsd-catalog-publish-bar",
+      "workflow": "coding"
+    },
+    "smoke-format": {
+      "skill": "bs-status-format",
+      "workflow": "other"
+    },
+    "status-page": {
+      "skill": "bsd-status-page",
+      "workflow": "writing"
+    },
+    "storyboard-before-render": {
+      "skill": "bsd-storyboard-first",
+      "workflow": "design"
+    },
+    "thread-handoff-note": {
+      "skill": "bsr-handoff-note",
+      "workflow": "writing"
+    },
+    "token-sync-across-hosts": {
+      "skill": "bso-token-handoff",
+      "workflow": "other"
+    },
+    "workplan-authoring": {
+      "skill": "bso-workplan-format",
+      "workflow": "writing"
+    }
+  },
+  "provenance": {
+    "harness_commit": "cef3542-dirty",
+    "started": "2026-09-19T00:40:38Z",
+    "seed": 20260918,
+    "workers": 4,
+    "command": "python3 eval/run_grid.py --out runs --trials 3 --seed 20260918"
+  },
   "excluded": [],
   "caveats": [
     "Every task is drawn from one person's real session logs. n equals one machine, so this measures this setup, not setups in general.",

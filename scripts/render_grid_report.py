@@ -111,6 +111,27 @@ def validate(raw: dict[str, Any]) -> dict[str, Any]:
     si = raw.get('skills_inspected', 0)
     if not isinstance(si, int) or isinstance(si, bool) or si < 0:
         raise ValueError('skills_inspected must be a non-negative integer')
+
+    # The cost block drives the headline, so a malformed one has to stop the
+    # render rather than quietly fall through to the weaker rate-only headline.
+    # It stays optional because older results predate it; what it must not be is
+    # present and wrong.
+    cost = raw.get('cost')
+    if cost is not None:
+        if not isinstance(cost, dict):
+            raise ValueError('cost must be an object keyed by arm')
+        for k, arm in cost.items():
+            if k not in arms:
+                raise ValueError(f'cost has arm {k!r}, which is not in the grid')
+            for key in ('runs', 'passes', 'billed_per_run'):
+                if not isinstance(arm.get(key), int) or isinstance(arm[key], bool) or arm[key] < 0:
+                    raise ValueError(f'cost {k} needs a non-negative integer {key}')
+            if arm['passes'] > arm['runs']:
+                raise ValueError(f'cost {k} claims more passes than runs')
+            bpp = arm.get('billed_per_pass')
+            # None means the arm never passed, which is a measurement, not a gap.
+            if bpp is not None and (not isinstance(bpp, int) or bpp < 0):
+                raise ValueError(f'cost {k} billed_per_pass must be a non-negative integer or null')
     return raw
 
 
@@ -129,23 +150,32 @@ def headline(raw: dict[str, Any]) -> tuple[str, str]:
     hero = cs[HERO_CONTRAST]
     setup = hero['delta_points']
     before, after = hero['before'], hero['after']
+    cost = raw.get('cost') or {}
+    cb, ca = cost.get(before['arm']) or {}, cost.get(after['arm']) or {}
 
     # The headline has to be the claim the hero figure actually supports. The
-    # brain draws one model with the skills off and the same model with them on,
-    # so a headline about beating a model upgrade would be pointing at a bar that
-    # is not there. That comparison is real and it gets its own block lower down.
+    # brain draws one model with the skill out of reach and the same model with
+    # it in reach, so a headline about beating a model upgrade would point at a
+    # bar that is not on the page. That contrast gets its own block lower down.
     sub = (f'{after["passed"]} of {after["trials"]} trials passed with the skill in reach, '
-           f'against {before["passed"]} of {before["trials"]} without them. '
+           f'against {before["passed"]} of {before["trials"]} without it. '
            f'{hero["tasks_compared"]} tasks, same model on both sides, same checks. '
            f'Each task turns on a house convention the prompt never states, so this is '
            f'a measure of convention compliance and not of general ability.')
 
-    if setup > 0:
-        return (f'The skills took the same model from {pct(before["rate"])}% '
-                f'to {pct(after["rate"])}%.', sub)
-    if setup == 0:
-        return ('Reaching the skills changed nothing.', sub)
-    return (f'The same model scored {signed(setup)} points with the skills reachable.', sub)
+    if setup <= 0:
+        return (('Reaching the skill changed nothing.' if setup == 0 else
+                 f'The same model scored {signed(setup)} points with the skill in reach.'), sub)
+
+    # Tokens per run barely move between the arms, so the spend is not where the
+    # difference lives and the headline must not pretend otherwise. What moves is
+    # the share of that identical spend that comes back as work which passes.
+    if cb.get('billed_per_pass') and ca.get('billed_per_pass'):
+        ratio = cb['billed_per_pass'] / ca['billed_per_pass']
+        if ratio >= 2:
+            return (f'Same tokens in. {ratio:.0f} times as much usable work out.', sub)
+    return (f'The skill took the same model from {pct(before["rate"])}% '
+            f'to {pct(after["rate"])}%.', sub)
 
 
 def fmt_p(p: float | None) -> str:
@@ -181,6 +211,23 @@ def verdict_line(raw: dict[str, Any]) -> str:
             f'their checks, on the same model, with the same prompts.')
 
 
+def never_passed_line(raw: dict[str, Any]) -> str:
+    """The tasks the setup did not rescue, named.
+
+    A page that reports a win and leaves the losses as a residual invites the
+    reader to assume there were none. Naming them costs one sentence and is the
+    cheapest credibility on the page.
+    """
+    c = raw['contrasts'][HERO_CONTRAST]
+    zero = [p['task_id'] for p in (c.get('pairs') or [])
+            if p.get('trials', {}).get('after', {}).get('passed') == 0]
+    if not zero:
+        return ''
+    names = ', '.join(zero[:-1]) + ' and ' + zero[-1] if len(zero) > 1 else zero[0]
+    return (f'{len(zero)} of {c["tasks_compared"]} tasks never passed a single trial even with the '
+            f'skill in reach: {names}. The setup did not rescue everything.')
+
+
 def strength_line(c: dict[str, Any]) -> str:
     """One sentence on what this sample can and cannot carry."""
     n = c['improved_tasks'] + c['regressed_tasks']
@@ -213,13 +260,22 @@ def hero_section(raw: dict[str, Any]) -> str:
     art = brain_svg(before['rate'], after['rate'], prefix='hero-brain', css_vars=True,
                     before_text='Skills off', after_text='Skills on')
     grid = raw['grid']
+    # Whose setup, which model, which tasks. A page that leaves any of the three
+    # to be inferred reads as a template with numbers dropped into it, which is
+    # the first thing a sceptical reader tests it for.
+    kicker = (f'One developer machine, {raw.get("skills_inspected", 0)} installed skills. '
+              f'{grid["tasks"]} tasks taken from its real sessions, each paired with the one '
+              f'installed skill that covers it, run on {grid["models"].get("base", "one model")} '
+              f'with that skill out of reach and then in reach.')
+    missed = never_passed_line(raw)
     return f'''<section class="hero" aria-labelledby="hero-title">
   <div class="hero-cloud" data-cloud></div>
   <div class="hero-copy">
-    <p class="hero-kicker">{grid['tasks']} tasks taken from real sessions, each paired with the one installed skill that covers it, run with that skill out of reach and then in reach on the same model</p>
+    <p class="hero-kicker">{esc(kicker)}</p>
     <h1 id="hero-title">{esc(headline(raw)[0])}</h1>
     <p class="hero-sub">{esc(headline(raw)[1])}</p>
     <p class="hero-verdict">{esc(verdict_line(raw))}</p>
+    {f'<p class="hero-missed">{esc(missed)}</p>' if missed else ''}
   </div>
   <figure class="hero-chart">
     <div class="hemi hemi-before">
@@ -280,6 +336,143 @@ def cross_callout(raw: dict[str, Any]) -> str:
   <p class="callout-note">{esc(strength_line(c))} This holds on tasks that turn on a stated
   house convention. It is not a claim that the smaller model is the better model, and a reader
   who takes it that way has been misled by this page rather than by the data.</p>
+</section>'''
+
+
+def thousands(n: int | None) -> str:
+    return '&middot;' if n is None else f'{n:,}'
+
+
+def cost_section(raw: dict[str, Any]) -> str:
+    """The bill, because the headline is a claim about money.
+
+    Read from the CLI's own final `result` event on all 288 runs, so this is
+    metered spend rather than an estimate. The section exists to make the
+    headline checkable and, just as importantly, to kill the claim it is nearest
+    to: the setup does not save tokens per run. It changes how many of those
+    identical runs come back with something that passes.
+    """
+    cost = raw.get('cost')
+    if not cost:
+        return ''
+    arms = raw['grid']['arms']
+    order = [k for k in ('A', 'B', 'C', 'D') if k in cost and k in arms]
+    if not order:
+        return ''
+
+    rows = ''.join(
+        f'<tr><td>{esc(arms[k]["label"])}</td>'
+        f'<td class="num">{thousands(cost[k]["billed_per_run"])}</td>'
+        f'<td class="num">{cost[k]["passes"]}/{cost[k]["runs"]}</td>'
+        f'<td class="num">{cost[k].get("turns_per_run", "&middot;")}</td>'
+        f'<td class="num{" up" if cost[k].get("billed_per_pass") and cost[k]["billed_per_pass"] < 100_000 else ""}">'
+        f'{thousands(cost[k].get("billed_per_pass"))}</td></tr>'
+        for k in order)
+
+    # The claim is that *adding the skill* barely changes the bill, so the spread
+    # has to be measured inside each model, holding the model fixed. Spreading
+    # across all four arms would fold the model upgrade into the number and
+    # overstate the movement the setup is responsible for.
+    pairs = [(a, b) for a, b in (('A', 'B'), ('C', 'D')) if a in cost and b in cost]
+    moves = [abs(cost[b]['billed_per_run'] - cost[a]['billed_per_run']) / cost[a]['billed_per_run'] * 100
+             for a, b in pairs]
+    spread = max(moves) if moves else None
+
+    hero = raw['contrasts'][HERO_CONTRAST]
+    cb, ca = cost.get(hero['before']['arm']) or {}, cost.get(hero['after']['arm']) or {}
+    lede = ('Adding the skill moves per-run token spend by under '
+            f'{math.ceil(spread)}%, on either model. '
+            if spread is not None else 'Per-run token spend barely moves. ')
+    if cb.get('billed_per_pass') and ca.get('billed_per_pass'):
+        lede += (f'What it moves is how many of those runs produce something that passes, so the '
+                 f'same budget buys {cb["billed_per_pass"] / ca["billed_per_pass"]:.0f} times as '
+                 f'much work that clears its checks.')
+    else:
+        lede += 'What it moves is how many of those runs produce something that passes.'
+
+    return f'''<section class="chart-block" aria-labelledby="cost-title">
+  <header class="block-head">
+    <p class="kicker">What the spend buys</p>
+    <h2 id="cost-title">The bill barely moves. What comes back for it does.</h2>
+    <p class="lede">{esc(lede)}</p>
+  </header>
+  <div class="table-scroll">
+  <table class="contrast-table">
+    <caption>Metered from every run's own final usage record. Billed tokens are input plus cache
+    writes plus output; cache reads are excluded, because a cache read is not what the caller pays for.</caption>
+    <thead><tr><th>Condition</th><th class="num">Billed tokens per run</th>
+    <th class="num">Runs that passed</th><th class="num">Turns per run</th>
+    <th class="num" title="total billed tokens in the arm divided by the number of passing runs">Billed per passing run</th></tr></thead>
+    <tbody>{rows}</tbody>
+  </table>
+  </div>
+  <p class="callout-note">The last column counts the failed attempts against the successes, which
+  is the only cost figure that means anything if the output has to be usable. It is not a bill you
+  would ever receive: nobody reruns one task seventy times. It is what a run is worth when most
+  runs come back unusable.</p>
+</section>'''
+
+
+def repro_section(raw: dict[str, Any]) -> str:
+    """The command, the commit, and every task-to-skill pairing in one table.
+
+    The sceptical reader's question is not whether the numbers are arithmetic,
+    it is whether anything ran at all. The one answer to that is showing the
+    command, the version of the code it ran, and the per-task detail that only
+    exists if a run happened: which skill each task was paired with, and how
+    many of its trials actually loaded that skill.
+    """
+    prov = raw.get('provenance') or {}
+    index = raw.get('tasks_index') or {}
+    hero = raw['contrasts'][HERO_CONTRAST]
+    pairs = hero.get('pairs') or []
+    if not pairs:
+        return ''
+    grid = raw['grid']
+    trials = grid['trials_per_task']
+
+    rows = []
+    for p in sorted(pairs, key=lambda x: x['task_id']):
+        meta = index.get(p['task_id']) or {}
+        loaded = (p.get('invocation') or {}).get('trials_loaded') or {}
+        tb = p.get('trials', {})
+        # A task where the skill was reachable but never loaded is the single
+        # most damaging thing this table can reveal, so it is flagged rather
+        # than left for the reader to spot by comparing two columns.
+        after_loaded = loaded.get('after')
+        flag = ' class="down"' if after_loaded == 0 else ''
+        rows.append(
+            f'<tr><td>{esc(p["task_id"])}</td>'
+            f'<td>{esc(meta.get("skill") or "not recorded")}</td>'
+            f'<td class="num">{tb.get("before", {}).get("passed", "&middot;")}/{trials}</td>'
+            f'<td class="num">{tb.get("after", {}).get("passed", "&middot;")}/{trials}</td>'
+            f'<td class="num"{flag}>{after_loaded if after_loaded is not None else "&middot;"}/{trials}</td></tr>')
+
+    return f'''<section class="chart-block" aria-labelledby="repro-title">
+  <header class="block-head">
+    <p class="kicker">Rerun this</p>
+    <h2 id="repro-title">One command produced every number above.</h2>
+    <p class="lede">The harness is in the repository. Same seed, same tasks, same verifiers.
+    What will differ on your machine is the setup being measured, which is the point.</p>
+  </header>
+  <pre class="repro-cmd"><code>{esc(prov.get('command') or 'not recorded')}</code></pre>
+  <dl class="spec repro-spec">
+    <dt>Harness version</dt><dd>{esc(prov.get('harness_commit') or 'not recorded')}</dd>
+    <dt>Run started</dt><dd>{esc(prov.get('started') or 'not recorded')}</dd>
+    <dt>Seed</dt><dd>{esc(prov.get('seed') if prov.get('seed') is not None else 'not recorded')}</dd>
+    <dt>Parallel workers</dt><dd>{esc(prov.get('workers') if prov.get('workers') is not None else 'not recorded')}</dd>
+    <dt>Runs executed</dt><dd>{grid['tasks'] * trials * len(grid['arms'])}</dd>
+  </dl>
+  <div class="table-scroll">
+  <table class="contrast-table">
+    <caption>Every task, the skill it was paired with, and how many of its trials loaded that
+    skill when it was in reach. The last column is read from each run's own transcript, not asserted.</caption>
+    <thead><tr><th>Task</th><th>Paired skill</th>
+    <th class="num">Passed, skill off</th><th class="num">Passed, skill on</th>
+    <th class="num" title="trials in which the skill was actually loaded">Skill loaded</th></tr></thead>
+    <tbody>{''.join(rows)}</tbody>
+  </table>
+  </div>
 </section>'''
 
 
@@ -397,10 +590,11 @@ def report_html(raw: dict[str, Any]) -> str:
 <div class="wrap">
 <nav class="nav" aria-label="Report header">
   <span class="brand">{MARK}agi labs</span>
-  <span class="nav-note">Brain Surgery &middot; local result, not shared</span>
+  <span class="nav-note">Brain Surgery &middot; measured locally, nothing uploaded</span>
 </nav>
 <main>
 {hero_section(raw)}
+{cost_section(raw)}
 {chart_section('arms', 'All four conditions',
                'Two models, with and without the skill.',
                'One bar per model. The solid part is the rate without the skill, the pale part is '
@@ -417,6 +611,7 @@ def report_html(raw: dict[str, Any]) -> str:
                'Small samples are easy to over-read, so the whole thing is here to be counted '
                'rather than summarised away.',
                'taskGrid')}
+{repro_section(raw)}
 {method_section(raw)}
 </main>
 <footer class="footer">
@@ -443,7 +638,10 @@ def report_html(raw: dict[str, Any]) -> str:
       if (block) block.remove();
       return;
     }}
-    try {{ fn(mount, result, {{}}); }}
+    // The section already carries a heading and a lede. The chart bundle draws
+    // its own by default, so without this every chart on the page states its
+    // title twice, one line apart.
+    try {{ fn(mount, result, {{title: false, subtitle: false}}); }}
     catch (e) {{ var b = mount.closest('.chart-block'); if (b) b.remove(); }}
   }});
 

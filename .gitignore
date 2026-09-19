@@ -10,3 +10,6 @@ examples/generated/*
 !examples/generated/scan/
 eval/runs/
 *.local
+
+# Rendered reports. Build output: the result JSON is the artifact worth keeping.
+out/

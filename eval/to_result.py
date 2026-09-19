@@ -24,8 +24,11 @@ report from claiming significance it cannot have.
 import argparse
 import json
 import math
+import subprocess
 from collections import defaultdict
 from pathlib import Path
+
+TASKS_DIR = Path(__file__).resolve().parent / 'tasks'
 
 #: A task counts as passed for the paired test when it passes the majority of
 #: its trials. The headline rate stays the trial-fraction macro average, which
@@ -41,9 +44,41 @@ ARM_LABEL = {
 }
 
 
+def run_cost(rec_path: Path) -> dict | None:
+    """What the run actually cost, from the CLI's own final `result` event.
+
+    Billed tokens exclude cache reads, because a cache read is not what the
+    caller pays for. The cache-read figure is still carried so the total is
+    reconstructable by anyone who disagrees with that choice.
+    """
+    tr = rec_path.parent / 'stdout.jsonl'
+    if not tr.exists():
+        return None
+    final = None
+    for line in tr.read_text(errors='replace').splitlines():
+        try:
+            e = json.loads(line)
+        except Exception:
+            continue
+        if isinstance(e, dict) and e.get('type') == 'result':
+            final = e
+    if not final:
+        return None
+    u = final.get('usage') or {}
+    return {
+        'billed': (u.get('input_tokens', 0) + u.get('cache_creation_input_tokens', 0)
+                   + u.get('output_tokens', 0)),
+        'cache_read': u.get('cache_read_input_tokens', 0),
+        'output': u.get('output_tokens', 0),
+        'turns': final.get('num_turns') or 0,
+        'seconds': (final.get('duration_ms') or 0) / 1000.0,
+    }
+
+
 def collect(run_dir: Path):
     """Read every record. Infra errors are held aside, never scored."""
     scores = defaultdict(dict)   # arm -> task -> {'passed':n,'total':n,'loaded':n}
+    costs = defaultdict(list)    # arm -> [run_cost, ...]
     excluded = []
     for rec_path in sorted(run_dir.rglob('record.json')):
         r = json.loads(rec_path.read_text())
@@ -57,7 +92,41 @@ def collect(run_dir: Path):
         if r.get('skill_loaded') is not None:
             cell['loaded_known'] += 1
             cell['loaded'] += 1 if r['skill_loaded'] else 0
-    return scores, excluded
+        rc = run_cost(rec_path)
+        if rc:
+            rc['passed'] = bool(r['passed'])
+            costs[r['arm']].append(rc)
+    return scores, costs, excluded
+
+
+def cost_summary(costs: dict) -> dict:
+    """Per-arm cost, and the one cost figure that means anything: what a run
+    that actually passes its checks costs, counting the failed attempts.
+
+    Per-run token spend barely moves between arms, so a report claiming a skill
+    "saves tokens" would be wrong. What moves is how much of that identical
+    spend comes back as output that passes, which is why the ratio below is
+    computed over every run in the arm and not over the winners only.
+    """
+    out = {}
+    for arm, runs in costs.items():
+        if not runs:
+            continue
+        n = len(runs)
+        passes = sum(1 for r in runs if r['passed'])
+        billed = sum(r['billed'] for r in runs)
+        out[arm] = {
+            'runs': n,
+            'passes': passes,
+            'billed_per_run': round(billed / n),
+            'output_per_run': round(sum(r['output'] for r in runs) / n),
+            'turns_per_run': round(sum(r['turns'] for r in runs) / n, 1),
+            'seconds_per_run': round(sum(r['seconds'] for r in runs) / n, 1),
+            # None, not infinity: an arm that never passed has no cost per pass,
+            # and printing a large number there would invent a measurement.
+            'billed_per_pass': round(billed / passes) if passes else None,
+        }
+    return out
 
 
 def macro_rate(arm_tasks, task_ids):
@@ -172,15 +241,48 @@ def compare(scores, before_arm, after_arm, label=None):
     }
 
 
+def harness_commit() -> str:
+    """Which version of the harness produced this.
+
+    A result that cannot say which code ran is not reproducible, whatever else
+    the page claims. `-dirty` is kept on purpose: a run against uncommitted
+    changes is worth less, and hiding that would be the more expensive lie.
+    """
+    try:
+        out = subprocess.run(['git', 'describe', '--always', '--dirty'],
+                             cwd=Path(__file__).resolve().parent, capture_output=True,
+                             text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return 'not recorded'
+    return out.stdout.strip() or 'not recorded'
+
+
+def task_index() -> dict:
+    """The task-to-skill map, so the report can print what each task was paired
+    with rather than asking the reader to take the pairing on trust."""
+    index = {}
+    for manifest in sorted(TASKS_DIR.glob('*/task.json')):
+        try:
+            d = json.loads(manifest.read_text())
+        except (OSError, ValueError):
+            continue
+        if d.get('id'):
+            index[d['id']] = {'skill': d.get('skill'), 'workflow': d.get('workflow')}
+    return index
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--runs', type=Path, required=True)
     ap.add_argument('--out', type=Path, required=True)
     ap.add_argument('--skills-inspected', type=int, default=0)
+    # The runner is often a copy of the tree rather than the checkout, and a copy
+    # has no git to ask. Better to be told the commit than to print a blank.
+    ap.add_argument('--harness-commit', default=None)
     a = ap.parse_args()
 
     grid = json.loads((a.runs / 'grid.json').read_text())
-    scores, excluded = collect(a.runs)
+    scores, costs, excluded = collect(a.runs)
 
     contrasts = {
         'setup_lift': compare(scores, 'A', 'B', 'Setup change, same model'),
@@ -213,6 +315,16 @@ def main():
                      for k in sorted(scores)},
         },
         'contrasts': {k: v for k, v in contrasts.items() if v},
+        'cost': cost_summary(costs),
+        'tasks_index': task_index(),
+        'provenance': {
+            'harness_commit': a.harness_commit or harness_commit(),
+            'started': grid.get('started'),
+            'seed': grid.get('seed'),
+            'workers': grid.get('workers'),
+            'command': (f'python3 eval/run_grid.py --out runs --trials {grid["trials"]} '
+                        f'--seed {grid.get("seed")}'),
+        },
         'excluded': excluded,
         'caveats': [
             "Every task is drawn from one person's real session logs. n equals one machine, "
