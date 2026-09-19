@@ -3,112 +3,25 @@
  "kind": "integration-fixture",
  "runs": [
   {
-   "harness": "claude",
+   "harness": "codex",
    "arm": "baseline",
-   "workspace": "/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-23n86qva",
+   "workspace": "/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-2ch3q8xq",
    "adapter": {
     "protocol": "brain-surgery-adapter/0.3",
-    "model": "claude-sonnet-5",
+    "model": "gpt-5.2-codex",
     "status": "ok",
     "usage": {
-     "total_tokens": 130155,
-     "raw": {
-      "input_tokens": 8,
-      "cache_creation_input_tokens": 34074,
-      "cache_read_input_tokens": 95266,
-      "output_tokens": 807,
-      "output_tokens_details": {
-       "thinking_tokens": 22
-      },
-      "server_tool_use": {
-       "web_search_requests": 0,
-       "web_fetch_requests": 0
-      },
-      "service_tier": "standard",
-      "cache_creation": {
-       "ephemeral_1h_input_tokens": 34074,
-       "ephemeral_5m_input_tokens": 0
-      },
-      "inference_geo": "not_available",
-      "iterations": [],
-      "speed": "standard"
-     }
+     "total_tokens": 25
     },
     "invocation": {
      "complete": true,
      "target_loaded": null
     },
-    "seconds": 44.1,
-    "harness": "claude",
+    "seconds": 48.1,
+    "harness": "codex",
     "returncode": 0
    },
-   "stderr_tail": null,
-   "score": {
-    "contract": "brain-surgery-scoring/0.1",
-    "scorable": true,
-    "task_passed": true,
-    "unscorable_reason": null,
-    "checks": {
-     "outcome": {
-      "passed": 5,
-      "total": 5
-     },
-     "indicator": {
-      "passed": 0,
-      "total": 1
-     },
-     "unclassified": {
-      "passed": 0,
-      "total": 0
-     }
-    },
-    "invocation": {
-     "fired": false,
-     "checked": 1
-    }
-   }
-  },
-  {
-   "harness": "claude",
-   "arm": "candidate",
-   "workspace": "/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-vk0xvprq",
-   "adapter": {
-    "protocol": "brain-surgery-adapter/0.3",
-    "model": "claude-sonnet-5",
-    "status": "ok",
-    "usage": {
-     "total_tokens": 132352,
-     "raw": {
-      "input_tokens": 8,
-      "cache_creation_input_tokens": 24667,
-      "cache_read_input_tokens": 106813,
-      "output_tokens": 864,
-      "output_tokens_details": {
-       "thinking_tokens": 142
-      },
-      "server_tool_use": {
-       "web_search_requests": 0,
-       "web_fetch_requests": 0
-      },
-      "service_tier": "standard",
-      "cache_creation": {
-       "ephemeral_1h_input_tokens": 24667,
-       "ephemeral_5m_input_tokens": 0
-      },
-      "inference_geo": "not_available",
-      "iterations": [],
-      "speed": "standard"
-     }
-    },
-    "invocation": {
-     "complete": true,
-     "target_loaded": true
-    },
-    "seconds": 38.1,
-    "harness": "claude",
-    "returncode": 0
-   },
-   "stderr_tail": null,
+   "stderr_tail": "ed [rollup.json](/private/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-2ch3q8xq/rollup.json). Validated 4 unique shipped orders from August 2026 across 2 regions.\ndiff --git a/rollup.json b/rollup.json\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..f52e94d3c467e1828026864fbadac4500230a80a\n--- /dev/null\n+++ b/rollup.json\n@@ -0,0 +1,12 @@\n+{\n+  \"regions\": {\n+    \"DACH\": {\n+      \"orders\": 2,\n+      \"total_eur\": 180.49\n+    },\n+    \"NORDICS\": {\n+      \"orders\": 2,\n+      \"total_eur\": 255.25\n+    }\n+  }\n+}\n\nhook: Stop\nhook: Stop Completed\ntokens used\n25.558\n",
    "score": {
     "contract": "brain-surgery-scoring/0.1",
     "scorable": true,
@@ -136,81 +49,36 @@
   },
   {
    "harness": "codex",
-   "arm": "baseline",
-   "workspace": "/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-iboej5tq",
-   "adapter": {
-    "protocol": "brain-surgery-adapter/0.3",
-    "model": "gpt-5.2-codex",
-    "status": "ok",
-    "usage": {
-     "total_tokens": null
-    },
-    "invocation": {
-     "complete": true,
-     "target_loaded": null
-    },
-    "seconds": 27.3,
-    "harness": "codex",
-    "returncode": 1
-   },
-   "stderr_tail": "s context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\nhook: SessionStart\nhook: SessionStart\nhook: SessionStart Completed\nhook: SessionStart Completed\nhook: UserPromptSubmit\nhook: UserPromptSubmit Completed\nERROR: You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 19th, 2026 6:11 AM.\nERROR: You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 19th, 2026 6:11 AM.\n",
-   "score": {
-    "contract": "brain-surgery-scoring/0.1",
-    "scorable": true,
-    "task_passed": false,
-    "unscorable_reason": null,
-    "checks": {
-     "outcome": {
-      "passed": 1,
-      "total": 5
-     },
-     "indicator": {
-      "passed": 0,
-      "total": 1
-     },
-     "unclassified": {
-      "passed": 0,
-      "total": 0
-     }
-    },
-    "invocation": {
-     "fired": false,
-     "checked": 1
-    }
-   }
-  },
-  {
-   "harness": "codex",
    "arm": "candidate",
-   "workspace": "/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-asefg1lu",
+   "workspace": "/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-f5hyjmng",
    "adapter": {
     "protocol": "brain-surgery-adapter/0.3",
     "model": "gpt-5.2-codex",
     "status": "ok",
     "usage": {
-     "total_tokens": null
+     "total_tokens": 13
     },
     "invocation": {
      "complete": true,
      "target_loaded": false
     },
-    "seconds": 13.0,
+    "seconds": 48.7,
     "harness": "codex",
-    "returncode": 1
+    "returncode": 0
    },
-   "stderr_tail": "s context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.\nhook: SessionStart\nhook: SessionStart\nhook: SessionStart Completed\nhook: SessionStart Completed\nhook: UserPromptSubmit\nhook: UserPromptSubmit Completed\nERROR: You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 19th, 2026 6:11 AM.\nERROR: You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Sep 19th, 2026 6:11 AM.\n",
+   "stderr_tail": "d [rollup.json](/private/var/folders/nz/6dczlgqj1qn0dcm98yr239kc0000gn/T/bs-integration-f5hyjmng/rollup.json).\n\nVerified: 4 unique shipped orders from August 2026 across 2 regions.\ndiff --git a/rollup.json b/rollup.json\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..f52e94d3c467e1828026864fbadac4500230a80a\n--- /dev/null\n+++ b/rollup.json\n@@ -0,0 +1,12 @@\n+{\n+  \"regions\": {\n+    \"DACH\": {\n+      \"orders\": 2,\n+      \"total_eur\": 180.49\n+    },\n+    \"NORDICS\": {\n+      \"orders\": 2,\n+      \"total_eur\": 255.25\n+    }\n+  }\n+}\n\nhook: Stop\nhook: Stop Completed\ntokens used\n13.949\n",
    "score": {
     "contract": "brain-surgery-scoring/0.1",
     "scorable": true,
-    "task_passed": false,
+    "task_passed": true,
     "unscorable_reason": null,
     "checks": {
      "outcome": {
-      "passed": 1,
+      "passed": 5,
       "total": 5
      },
      "indicator": {
-      "passed": 0,
+      "passed": 1,
       "total": 1
      },
      "unclassified": {
@@ -219,40 +87,27 @@
      }
     },
     "invocation": {
-     "fired": false,
+     "fired": true,
      "checked": 1
     }
    }
   }
  ],
  "summary": {
-  "claude": {
-   "baseline": {
-    "contract": "brain-surgery-scoring/0.1",
-    "tasks": 1,
-    "scored_tasks": 1,
-    "pass_rate": 100.0
-   },
-   "candidate": {
-    "contract": "brain-surgery-scoring/0.1",
-    "tasks": 1,
-    "scored_tasks": 1,
-    "pass_rate": 100.0
-   }
-  },
   "codex": {
    "baseline": {
     "contract": "brain-surgery-scoring/0.1",
     "tasks": 1,
     "scored_tasks": 1,
-    "pass_rate": 0.0
+    "pass_rate": 100.0
    },
    "candidate": {
     "contract": "brain-surgery-scoring/0.1",
     "tasks": 1,
     "scored_tasks": 1,
-    "pass_rate": 0.0
+    "pass_rate": 100.0
    }
   }
- }
+ },
+ "note": "Codex arms re-run 2026-09-19 after the usage limit reset. Both passed. The indicator readings in `runs` were taken before the harness stopped writing its request/response JSON into the scored workspace; re-scored clean they are 0/1 in both arms, meaning Codex did not consult the candidate procedure for this task."
 }

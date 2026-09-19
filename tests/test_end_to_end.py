@@ -138,3 +138,49 @@ class WholePipeline(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
+
+
+class HarnessDoesNotContaminateItsOwnMeasurement(unittest.TestCase):
+    """The integration runner wrote its request and response JSON into the same
+    workspace the verifier inspects. The response happened to contain the digits
+    the procedure indicator searches for, so that check passed in the baseline arm,
+    which has no procedure at all.
+
+    A harness that leaves files in the evidence is the same fault as a scan that
+    counts its own eval sessions as usage. Both were in this repository on the same
+    day."""
+
+    def test_the_runner_keeps_its_files_out_of_the_workspace(self):
+        source = (ROOT / 'integration' / 'run_integration.py').read_text()
+        # The request/response paths must be built from something other than the
+        # workspace the verifier is handed.
+        self.assertIn("side = workspace.parent", source)
+        self.assertNotIn("rq = workspace / ", source)
+        self.assertNotIn("rs = workspace / ", source)
+
+    def test_the_indicator_does_not_fire_on_a_file_the_agent_never_wrote(self):
+        """The check reads every .md/.txt/.json in the workspace, so anything the
+        harness leaves there becomes evidence about the agent."""
+        case = ROOT / 'integration' / 'case-csv-rollup'
+        with tempfile.TemporaryDirectory() as d:
+            ws = Path(d)
+            for item in (case / 'workspace').iterdir():
+                (ws / item.name).write_bytes(item.read_bytes())
+            # A correct answer, and no trace of the procedure.
+            (ws / 'rollup.json').write_text(json.dumps({'regions': {
+                'DACH': {'orders': 2, 'total_eur': 180.49},
+                'NORDICS': {'orders': 2, 'total_eur': 255.25}}}))
+            p = subprocess.run([sys.executable, str(case / 'check.py'), str(ws)],
+                               capture_output=True, text=True)
+            totals = json.loads(p.stdout.splitlines()[0])['totals']
+            self.assertEqual(totals['outcome']['passed'], totals['outcome']['total'])
+            self.assertEqual(totals['indicator']['passed'], 0)
+
+            # Now drop a harness-shaped file carrying the raw row count.
+            (ws / '_response.json').write_text('{"seconds": 10, "status": "ok"}')
+            p = subprocess.run([sys.executable, str(case / 'check.py'), str(ws)],
+                               capture_output=True, text=True)
+            totals = json.loads(p.stdout.splitlines()[0])['totals']
+            self.assertEqual(totals['indicator']['passed'], 1,
+                             'this is the contamination: a harness file made the '
+                             'indicator fire, which is why it must live elsewhere')
