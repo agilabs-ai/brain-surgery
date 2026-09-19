@@ -268,15 +268,26 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
     #     agent reads when deciding whether this skill fits the task in front of it.
     for entry in sorted((sk for sk in skills if sk.get('malformed')),
                         key=lambda sk: sk['name']):
+        # How often it has loaded changes what this means to the reader, so the
+        # finding says which case they are in rather than one line for both. A
+        # skill loading only when named is a different problem from one that has
+        # never run at all, and on a real machine both were present.
+        seen = loads.get(bare_skill_name(entry['name']), 0)
+        if seen:
+            consequence = (f'It has loaded {seen} time{"" if seen == 1 else "s"}, every one '
+                           f'because something named it directly. Your agent cannot pick it '
+                           f'for a task on its own, because there is nothing to match against.')
+        else:
+            consequence = ('It has never loaded. With no description there is nothing for '
+                           'your agent to match a task against, so it sits installed and '
+                           'is never reached.')
         findings.append({
             'code': 'no_description',
             'skill': entry['name'],
-            'title': f'{entry["name"]} has no description, so nothing triggers it',
-            'detail': ('A description is what your agent reads when deciding whether a '
-                       'skill fits the task in front of it. Without one this still loads '
-                       'if you name it, and will not be picked on its own. That is how a '
-                       'good skill sits installed and never gets reached.'),
-            'evidence': {'path': entry.get('path')},
+            'title': f'{entry["name"]} has no description, so nothing can trigger it',
+            'detail': ('A description is the only thing your agent reads when deciding '
+                       'whether a skill fits the task in front of it. ' + consequence),
+            'evidence': {'path': entry.get('path'), 'loads': seen},
             'fix': ('Add a description saying when to use it, at the top of %s:\n'
                     '---\ndescription: Use when <the situation this handles>.\n---'
                     % entry.get('path')),
