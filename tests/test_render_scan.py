@@ -292,8 +292,10 @@ def test_zero_installed_does_not_divide_by_zero(scan, out):
     scan["most_used"] = []
     s, public, local, _ = rendered(scan, out)
     assert s["installed"] == 0
-    assert 'style="width:0%"' in public and "0 skills installed" in public
-    assert "0 skills installed" in local
+    # The property is the absent division, not the wording. The strip below the
+    # headline now carries the counts; the headline carries the verdict.
+    assert 'style="width:0%"' in public
+    assert "0 of 0 skills reached" in public and "0 of 0 skills reached" in local
 
 
 def test_one_affected_skill_reads_as_singular(scan, out):
@@ -328,7 +330,7 @@ def test_a_single_installed_skill_renders(scan, out):
     s, public, local, _ = rendered(scan, out)
     assert s["installed"] == 1
     assert 'style="width:100%"' in public
-    assert "100% reached" in public and "100% reached" in local
+    assert "1 of 1 skills reached" in public and "1 of 1 skills reached" in local
 
 
 def test_singular_counts_read_as_singular_in_the_headline(scan, out):
@@ -422,7 +424,7 @@ def test_rerendering_overwrites_in_place(scan, out):
     s = render(scan, out)
     assert s["reached"] == 14
     assert {p.name for p in out.iterdir()} == OUTPUT_NAMES
-    assert "reached 14" in (out / "public-scan.html").read_text()
+    assert "14 of 191 skills reached" in (out / "public-scan.html").read_text()
 
 
 def test_pages_are_well_formed_enough_to_open(scan, out):
