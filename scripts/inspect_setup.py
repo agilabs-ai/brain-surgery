@@ -227,6 +227,7 @@ def inventory(roots: list[Path]) -> dict[str,Any]:
         if not root.exists():
             warnings.append(f'Skill root not found: {root}')
             continue
+        root_label=str(root)
         for p in bounded_files(root,'SKILL.md'):
             # A runaway guard, not a sampling knob. At 300 it bound on an ordinary
             # heavily-used machine and silently set the headline itself, which is
@@ -269,6 +270,11 @@ def inventory(roots: list[Path]) -> dict[str,Any]:
             # TASK_SPEC.md names: how a good skill never gets reached.
             malformed=[] if h.get('description') else ['no description']
             result.append({
+                # The root this file was reached through, not where it resolves to.
+                # A skill symlinked from two harness roots into one project tree
+                # resolves to paths that carry no harness at all, so scoping on the
+                # resolved path called two links to the same place a collision.
+                'found_under':root_label,
                 'malformed':malformed or None,'local_id':hashlib.sha256(str(p.resolve()).encode()).hexdigest()[:16],
                 'name':p.parent.name,
                 'declared_name':declared if declared and declared!=p.parent.name else None,
@@ -415,28 +421,50 @@ def default_skill_roots(project: Path, home: Path, host: str='claude') -> list[P
     gap in this scan.
     """
     roots=[project/'.agents/skills', project/'.claude/skills', home/'.agents/skills']
-    roots.append(home/('.codex/skills' if host=='codex' else '.claude/skills'))
-    if host=='codex':
-        return roots
-    # Installed plugin versions only. The sibling `marketplaces/` tree is the
-    # catalogue clone: it holds every plugin the marketplace offers, including ones
-    # this machine never installed, and counting those as installed capability
-    # inflates the denominator with skills the agent could never have reached.
-    #
-    # One version per plugin. The cache never evicts, so a plugin updated ten times
-    # leaves ten version directories side by side. All but the newest are dead, and
-    # counting them turns routine plugin updates into nine phantom installs and a
-    # name-collision warning about a plugin that is in fact working fine.
+    # Roots follow the hosts whose transcripts are actually read. Under `auto` the
+    # log side reads BOTH Claude and Codex, and the skill side only built Claude
+    # roots, so every Codex skill that ran came back as "loaded but not found on
+    # disk": 37 of them on a real machine, which is not a fault in the setup, it is
+    # the scan looking in one place and listening in two.
+    hosts = ('claude','codex') if host == 'auto' else (host,)
+    if 'claude' in hosts:
+        roots.append(home/'.claude/skills')
+    if 'codex' in hosts:
+        roots.append(home/'.codex/skills')
+    for h in hosts:
+        roots += plugin_cache_roots(home/('.%s/plugins/cache' % h))
+    return roots
+
+
+def plugin_cache_roots(cache: Path) -> list[Path]:
+    """The newest installed version of each plugin's skills directory.
+
+    Installed versions only. The sibling `marketplaces/` tree is the catalogue
+    clone: it holds every plugin the marketplace offers, including ones this
+    machine never installed, and counting those as installed capability inflates
+    the denominator with skills the agent could never have reached.
+
+    One version per plugin. The cache never evicts, so a plugin updated ten times
+    leaves ten version directories side by side. All but the newest are dead, and
+    counting them turns routine plugin updates into nine phantom installs and a
+    name-collision warning about a plugin that is in fact working fine.
+
+    Both hosts use this layout, which is why it is a function rather than a block
+    inside the Claude branch it was written in.
+    """
     newest: dict[tuple[str,str],Path] = {}
-    for skills in (home/'.claude/plugins/cache').glob('*/*/*/skills'):
+    for skills in cache.glob('*/*/*/skills'):
         if not skills.is_dir():continue
         version=skills.parent
         key=(version.parent.parent.name, version.parent.name)   # marketplace, plugin
         current=newest.get(key)
         if current is None or version.stat().st_mtime > current.parent.stat().st_mtime:
             newest[key]=skills
-    roots+=[newest[k] for k in sorted(newest)]
-    return roots
+    return [newest[k] for k in sorted(newest)]
+
+
+def _legacy_claude_plugin_roots(home: Path) -> list[Path]:
+    return plugin_cache_roots(home/'.claude/plugins/cache')
 
 
 def default_log_roots(host: str, project: Path, home: Path, scope: str) -> tuple[list[Path],list[str]]:
