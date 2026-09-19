@@ -242,6 +242,9 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
                       'and the load returned an error, so the work continued without it.',
             'evidence': {'attempts': attempts.get(name, 0), 'confirmed_loads': loads.get(name, 0),
                          'failed': count},
+            'fix': (f'Check that `{name}` is on a path this host reads. The usual cause is a '
+                    f'skill kept in a canonical store and never linked into the host root, '
+                    f'which looks correct in a directory listing and is invisible to the agent.'),
         })
 
     # 2. Two skill directories declaring the same name. One silently shadows the
@@ -290,6 +293,11 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
             'evidence': {'paths': sorted(paths),
                          'identical': identical,
                          'digests': sorted({d for d in digests if d})},
+            'fix': (f'Nothing to do today. If you edit one copy, mirror it or replace the '
+                    f'second with a symlink to the first, so they cannot drift apart:\n'
+                    f'  ln -sfn {sorted(paths)[0]!s} {sorted(paths)[1]!s}'
+                    if identical else
+                    f'Diff them and keep one:\n  diff {sorted(paths)[0]!s} {sorted(paths)[1]!s}'),
         })
 
     # 3. A skill the transcripts show loading that the inventory never saw. Means
@@ -304,6 +312,10 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
                       'moved or removed since it last ran. Only the second is something to '
                       'fix; either way the counts below are a floor, not a ceiling.',
             'evidence': {'confirmed_loads': loads.get(name, 0)},
+            'fix': (f'`{name}` ran recently and no scanned root holds it now. Either it was '
+                    f'removed since, in which case nothing references it any more and this '
+                    f'will stop appearing, or it lives in a root this scan was not pointed '
+                    f'at, which you can add with --skill-root.'),
         })
 
     # 4. The headline. Installed capability the agent never reached.
@@ -320,6 +332,10 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
                       'not load them once.',
             'evidence': {'installed': len(installed), 'reached': len(reached),
                          'dormant': len(dormant), 'names': dormant},
+            # Deliberately no fix. Not using a skill is not a defect, and suggesting
+            # people delete skills they have not needed yet is advice this scan has
+            # no evidence for.
+            'fix': None,
         })
     elif installed:
         findings.append({

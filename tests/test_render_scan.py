@@ -443,3 +443,36 @@ def test_page_is_a_pure_function_of_its_input(scan):
     page(s, scan, local=True)
     page(s, scan, local=False)
     assert json.dumps(scan, sort_keys=True) == before
+
+
+def test_fix_text_never_reaches_the_public_report(scan, out):
+    """A fix names absolute paths on the user's machine and sometimes a shell
+    command containing them. The public payload is an allowlist, so this should
+    hold by construction, and it is worth pinning because the fix field was added
+    after that allowlist was written."""
+    scan["findings"] = [{
+        "code": "duplicated", "skill": "secret-skill-name", "confidence": "observation",
+        "title": "secret-skill-name is stored twice, identically",
+        "detail": "Both copies are byte-identical.",
+        "fix": "Replace one with a symlink:\nln -sfn /Users/private/.agents/skills/x /Users/private/.claude/skills/x",
+        "evidence": {"paths": ["/Users/private/a/SKILL.md", "/Users/private/b/SKILL.md"],
+                     "identical": True, "digests": ["abc"]},
+    }]
+    _, public, local, _ = rendered(scan, out)
+    assert "ln -sfn" in local and "/Users/private" in local
+    assert "ln -sfn" not in public
+    assert "/Users/private" not in public
+    assert "secret-skill-name" not in public
+
+
+def test_a_finding_without_a_fix_renders_without_an_empty_box(scan, out):
+    """Dormancy deliberately carries no fix: suggesting people delete skills they
+    have not needed yet is advice this scan has no evidence for."""
+    scan["findings"] = [{
+        "code": "dormant", "skill": None, "confidence": "observation",
+        "title": "3 of 4 installed skills were never used",
+        "detail": "Present and not loaded.", "fix": None,
+        "evidence": {"installed": 4, "reached": 1, "dormant": 3, "names": ["a", "b", "c"]},
+    }]
+    _, _, local, _ = rendered(scan, out)
+    assert 'class="fix"' not in local
