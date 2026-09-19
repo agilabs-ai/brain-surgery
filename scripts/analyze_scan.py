@@ -20,7 +20,7 @@ SCHEMA = 'brain-surgery-scan/0.1'
 
 # A finding is only emitted when the transcripts support it. Each carries the
 # evidence that produced it so the report can show its work.
-SEVERITY = {'malformed': 3, 'load_failed': 3, 'shadowed': 2, 'inventory_gap': 2,
+SEVERITY = {'no_description': 2, 'load_failed': 3, 'shadowed': 2, 'inventory_gap': 2,
             'duplicated': 1, 'dormant': 1}
 
 #: How much weight a finding can carry, which is a different question from how
@@ -35,7 +35,7 @@ SEVERITY = {'malformed': 3, 'load_failed': 3, 'shadowed': 2, 'inventory_gap': 2,
 #:   suspected    historical evidence only; the condition may already be gone
 #:   observation  true, and not necessarily anything to fix
 CONFIDENCE = {
-    'malformed': 'confirmed',      # the file is here and the frontmatter is not
+    'no_description': 'confirmed', # the file is here and the description is not
     'shadowed': 'confirmed',       # two DIFFERENT files on disk today, both readable
     'duplicated': 'observation',   # same bytes twice; nothing behaves differently
     'load_failed': 'suspected',    # an error in a past transcript, not re-tested
@@ -124,7 +124,9 @@ def coverage(data: dict[str, Any]) -> dict[str, Any]:
     # against what they know they ran deserves to see where the rest went rather
     # than concluding the scan missed them.
     excluded = int(data.get('harness_sessions_excluded') or 0)
+    scope = data.get('scope') or 'user'
     return {
+        'scope': scope,
         'sessions_analyzed': len(sessions),
         'harness_sessions_excluded': excluded,
         'turns_analyzed': sum(len(s.get('turns', [])) for s in sessions),
@@ -136,6 +138,9 @@ def coverage(data: dict[str, Any]) -> dict[str, Any]:
         'caveat': ('Counts cover the sessions read in this scan, not your whole history. '
                    'A skill with no recorded load was not reached in this window; '
                    'that is not proof it was never useful.'
+                   + ('' if scope != 'project' else
+                      ' This scan read only this project\'s sessions, so a skill you rely on '
+                      'elsewhere shows as never reached. Use --scope user for the whole machine.')
                    + ('' if not excluded else
                       ' %d evaluation session%s excluded, because a benchmark run is not '
                       'you using your setup.' % (excluded, ' was' if excluded == 1 else 's were'))),
@@ -258,22 +263,23 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
                     f'which looks correct in a directory listing and is invisible to the agent.'),
         })
 
-    # 2a. A SKILL.md the host cannot load at all. Confirmed by definition: the
-    #     file is on disk right now and the frontmatter it needs is not in it.
+    # 2a. A skill with no description. It loads fine when called by name; what it
+    #     cannot do is get chosen, because the description is the only thing the
+    #     agent reads when deciding whether this skill fits the task in front of it.
     for entry in sorted((sk for sk in skills if sk.get('malformed')),
                         key=lambda sk: sk['name']):
-        missing = entry['malformed']
         findings.append({
-            'code': 'malformed',
+            'code': 'no_description',
             'skill': entry['name'],
-            'title': f'{entry["name"]} is missing frontmatter it needs to load',
-            'detail': ('A host reads a skill through its YAML frontmatter. This file has '
-                       + ' and '.join(missing) + ', so it sits on disk looking installed '
-                       'and the agent will not load it.'),
-            'evidence': {'path': entry.get('path'), 'missing': missing},
-            'fix': ('Add the missing field(s) to the top of %s:\n'
-                    '---\nname: %s\ndescription: when to use this\n---'
-                    % (entry.get('path'), entry['name'])),
+            'title': f'{entry["name"]} has no description, so nothing triggers it',
+            'detail': ('A description is what your agent reads when deciding whether a '
+                       'skill fits the task in front of it. Without one this still loads '
+                       'if you name it, and will not be picked on its own. That is how a '
+                       'good skill sits installed and never gets reached.'),
+            'evidence': {'path': entry.get('path')},
+            'fix': ('Add a description saying when to use it, at the top of %s:\n'
+                    '---\ndescription: Use when <the situation this handles>.\n---'
+                    % entry.get('path')),
         })
 
     # 2. Two skill directories declaring the same name. One silently shadows the
@@ -383,8 +389,12 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
             'code': 'dormant',
             'skill': None,
             'title': f'{len(dormant)} of {len(installed)} installed skills were never used',
-            'detail': 'These are installed and available. In the scanned window your agent did '
-                      'not load them once.',
+            'detail': ('These are installed and available. In the scanned window your agent '
+                       'did not load them once.'
+                       + ('' if (data.get('scope') or 'user') != 'project' else
+                          ' This scan covered one project only, so this count says almost '
+                          'nothing: skills are installed for the whole machine and most of '
+                          'your work happened elsewhere.')),
             'evidence': {'installed': len(installed), 'reached': len(reached),
                          'dormant': len(dormant), 'names': dormant},
             # Deliberately no fix. Not using a skill is not a defect, and suggesting

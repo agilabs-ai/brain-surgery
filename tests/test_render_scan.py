@@ -514,3 +514,19 @@ def test_nothing_excluded_means_no_sentence_about_it(scan, out):
     scan["coverage"]["harness_sessions_excluded"] = 0
     _, _, local, _ = rendered(scan, out)
     assert "excluded as evaluation runs" not in local
+
+
+def test_a_project_scoped_scan_says_its_window_was_narrow(scan, out):
+    """205 of 205 dormant from two sessions, with nothing saying the window was
+    deliberately one project wide. The dormancy false alarm in a different hat."""
+    scan["coverage"]["scope"] = "project"
+    _, public, local, _ = rendered(scan, out)
+    assert "Scope was one project" in local
+    assert "--scope user" in local
+    assert "Scope was one project" in public
+
+
+def test_a_user_scoped_scan_says_nothing_about_scope(scan, out):
+    scan["coverage"]["scope"] = "user"
+    _, _, local, _ = rendered(scan, out)
+    assert "Scope was one project" not in local

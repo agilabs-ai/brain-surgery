@@ -38,9 +38,9 @@ PUBLIC_SCHEMA = "brain-surgery-scan-public/0.1"
 # per-skill title and detail; this supplies the heading the codes group under, so
 # five shadowed skills read as one problem rather than five separate alarms.
 GROUPS = {
-    "malformed": ("Skills that cannot load at all",
-                  "A host reads a skill through its YAML frontmatter. These files are missing "
-                  "it, so they look installed and never run."),
+    "no_description": ("Skills nothing can trigger",
+                       "A description is what your agent reads when deciding whether a skill "
+                       "fits the task. Without one these load only if you name them."),
     "load_failed": ("Skills that failed when your agent reached for them",
                     "Your agent tried to use these and got an error back. The work continued without them."),
     "shadowed": ("Skills competing for the same trigger",
@@ -57,7 +57,7 @@ GROUPS = {
                     "Nothing below is a measurement of use. Widen the window or scan a "
                     "project that has transcripts to get one."),
 }
-ORDER = ["malformed", "shadowed", "load_failed", "inventory_gap", "duplicated",
+ORDER = ["no_description", "shadowed", "load_failed", "inventory_gap", "duplicated",
          "dormant", "no_evidence"]
 
 # What each confidence bucket means to the reader, in their words rather than ours.
@@ -286,6 +286,12 @@ def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
               "A skill with no recorded load was not reached in this window; that is not "
               "proof it is never used. Nothing was executed, uploaded, or changed."
               % plural(s["sessions_analyzed"], "session"))
+    if (raw.get("coverage") or {}).get("scope") == "project":
+        # 205 of 205 dormant from two sessions, with nothing on the page saying the
+        # window was deliberately one project wide. That is the dormancy false
+        # alarm again, wearing a different hat.
+        caveat += (" Scope was one project, so skills you use elsewhere on this machine "
+                   "show as never reached. Rerun with --scope user for the whole picture.")
     if excluded:
         caveat += (" %s excluded as evaluation runs, because a benchmark is not you using "
                    "your setup." % plural(excluded, "session"))
