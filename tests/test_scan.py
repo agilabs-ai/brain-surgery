@@ -857,3 +857,89 @@ class HostDetection(unittest.TestCase):
                           explicit=True, scope='user')
         loaded = {a['name'] for s in out['sessions'] for a in s['confirmed_skill_loads']}
         self.assertEqual(loaded, {'ok', 'cx'})
+
+
+class CrossHostRoots(unittest.TestCase):
+    """Once the inventory covered both agents' roots, mirroring a skill into each
+    produced 57 "stored twice" observations and 7 false collisions. That mirroring
+    is the documented deployment pattern: one canonical store linked into every
+    harness. Two copies can only shadow each other if one agent sees both."""
+
+    def entry(self, name, root, path, digest='same'):
+        return {'name': name, 'aliases': [name], 'path': path,
+                'found_under': root, 'skill_md_sha256': digest}
+
+    def scan(self, *entries):
+        return analyze({'schema_version': 'brain-surgery-inspection/0.3',
+                        'skills': list(entries), 'sessions': [{'turns': [1]}],
+                        'inventory_gap': []})
+
+    def hits(self, result, name):
+        return [f for f in result['findings'] if f.get('skill') == name]
+
+    def test_the_same_skill_in_a_claude_root_and_a_codex_root_is_not_a_collision(self):
+        r = self.scan(self.entry('wa', '/h/.claude/skills', '/h/.claude/skills/wa/SKILL.md', 'a'),
+                     self.entry('wa', '/h/.codex/skills', '/h/.codex/skills/wa/SKILL.md', 'b'))
+        self.assertEqual(self.hits(r, 'wa'), [])
+
+    def test_two_copies_inside_one_host_are_still_compared(self):
+        r = self.scan(self.entry('wa', '/h/.claude/skills', '/h/.claude/skills/wa/SKILL.md', 'a'),
+                     self.entry('wa', '/h/.agents/skills', '/h/.agents/skills/wa/SKILL.md', 'b'))
+        self.assertEqual([f['code'] for f in self.hits(r, 'wa')], ['shadowed'])
+
+    def test_the_canonical_store_counts_as_whichever_host_links_to_it(self):
+        """`~/.agents/skills` is the shared store, not a third agent. Treating it as
+        its own host would silence a real drift between it and a harness root."""
+        r = self.scan(self.entry('wa', '/h/.agents/skills', '/h/.agents/skills/wa/SKILL.md', 'a'),
+                     self.entry('wa', '/h/.codex/skills', '/h/.codex/skills/wa/SKILL.md', 'b'))
+        self.assertEqual([f['code'] for f in self.hits(r, 'wa')], ['shadowed'])
+
+    def test_scoping_uses_the_root_not_the_resolved_path(self):
+        """Two harness roots symlinking into project directories resolve to paths
+        carrying no harness marker at all, so scoping on the resolved path read two
+        links to one place as a collision. Found on a real machine, where .agents
+        and .codex pointed at two different checkouts of the same project."""
+        r = self.scan(self.entry('vid', '/h/.claude/skills', '/h/Projects/a/skills/vid/SKILL.md', 'a'),
+                     self.entry('vid', '/h/.codex/skills', '/h/Projects/b/skills/vid/SKILL.md', 'b'))
+        self.assertEqual(self.hits(r, 'vid'), [])
+
+
+class RootsFollowTheHostsRead(unittest.TestCase):
+    """Under `--host auto` the log side reads both Claude and Codex transcripts,
+    and the skill side built Claude roots only. Every Codex skill that ran came
+    back as "loaded but not found on disk": 37 of them on a real machine. Not a
+    fault in the setup, the scan looking in one place and listening in two."""
+
+    def roots(self, host):
+        return [str(p) for p in default_skill_roots(Path('/proj'), Path('/home/u'), host)]
+
+    def test_auto_covers_both_hosts(self):
+        r = self.roots('auto')
+        self.assertTrue(any('/.claude/skills' in p for p in r), r)
+        self.assertTrue(any('/.codex/skills' in p for p in r), r)
+
+    def test_a_named_host_stays_narrow_at_the_user_level(self):
+        """Pooling the other host's machine-wide store into a single-host scan
+        counts every shared skill twice, which is the bug the narrowing originally
+        fixed. Project-local roots are a different matter: a `.claude/skills`
+        directory inside a project is there because someone put it there, and it
+        is included for every host on purpose."""
+        home = '/home/u'
+        claude = [p for p in self.roots('claude') if p.startswith(home)]
+        self.assertFalse(any('/.codex/' in p for p in claude), claude)
+        codex = [p for p in self.roots('codex') if p.startswith(home)]
+        self.assertFalse(any('/.claude/' in p for p in codex), codex)
+
+    def test_plugin_caches_are_looked_for_under_every_host_read(self):
+        """`spreadsheets` and `firecrawl` live in ~/.codex/plugins/cache and were
+        reported as missing from disk because only the Claude cache was globbed."""
+        import inspect_setup
+        seen = []
+        original = inspect_setup.plugin_cache_roots
+        inspect_setup.plugin_cache_roots = lambda cache: seen.append(str(cache)) or []
+        try:
+            default_skill_roots(Path('/proj'), Path('/home/u'), 'auto')
+        finally:
+            inspect_setup.plugin_cache_roots = original
+        self.assertTrue(any('.claude/plugins/cache' in c for c in seen), seen)
+        self.assertTrue(any('.codex/plugins/cache' in c for c in seen), seen)

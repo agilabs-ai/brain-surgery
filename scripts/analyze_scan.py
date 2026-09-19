@@ -168,6 +168,27 @@ def distinct_files(paths: list[str]) -> list[str]:
     return out
 
 
+def host_of(path: str) -> str:
+    """Which agent's tree this file was reached through.
+
+    Takes the root a skill was found under rather than where it resolves to. A
+    skill symlinked from both `~/.agents/skills` and `~/.claude/skills` into a
+    project directory resolves to paths containing neither marker, so scoping on
+    the resolved path read two links to one place as a collision.
+
+    A skill kept in both `~/.claude/skills` and `~/.codex/skills` is one skill
+    deployed to two agents, which is the recommended layout, not a collision: the
+    two never compete because no single agent sees both. Comparing across them
+    produced 57 "stored twice" observations and 7 false collisions on a real
+    machine the moment the inventory started covering both hosts.
+    """
+    for marker, host in (('/.claude/', 'claude'), ('/.codex/', 'codex'),
+                         ('/.gemini/', 'gemini'), ('/.agents/', 'shared')):
+        if marker in path:
+            return host
+    return 'other'
+
+
 def all_namespaced(paths: list[str]) -> bool:
     """True when every copy lives inside a distinct plugin.
 
@@ -311,6 +332,13 @@ def analyze(data: dict[str, Any]) -> dict[str, Any]:
     for name, entries in sorted(by_name.items()):
         paths = distinct_files([e.get('path', '') for e in entries])
         if len(paths) < 2 or all_namespaced(paths):
+            continue
+        # Only copies one agent can see at once can shadow each other. The shared
+        # canonical store counts as whichever host links to it, so it is grouped
+        # with everything else rather than treated as a host of its own.
+        by_path = {e.get('path'): e for e in entries}
+        hosts = {host_of(by_path[p].get('found_under') or p) for p in paths if p in by_path}
+        if len(hosts - {'shared'}) > 1:
             continue
         # Identical copies are not a collision in any sense the user can feel.
         # Whichever one the host loads, the skill is the same. Every collision on
