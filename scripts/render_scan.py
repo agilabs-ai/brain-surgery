@@ -52,9 +52,35 @@ GROUPS = {
 }
 ORDER = ["load_failed", "shadowed", "inventory_gap", "dormant", "no_evidence"]
 
+# How many names a whole-setup finding lists inline before it says how many it
+# withheld. The complete list is always in the embedded scan JSON.
+NAME_PREVIEW = 24
+# Where a per-finding detail line is cut on the page. The scan writes prose long
+# enough to be worth clamping; the full text is in the embedded JSON.
+DETAIL_CHARS = 160
+
 
 def plural(n: int, word: str, suffix: str = "s") -> str:
     return "%d %s%s" % (n, word, "" if n == 1 else suffix)
+
+
+def clamp(text: Any, limit: int = DETAIL_CHARS) -> str:
+    """Escaped detail text, cut at a word boundary.
+
+    Cut first, escape second: the other order can slice an HTML entity in half
+    and emit a bare `&a` into the page. Cutting at a fixed character count alone
+    ended lines mid-word ("...has been moved or removed sin"), which reads as a
+    truncated render rather than a deliberate summary, so back up to the last
+    space and mark the cut.
+    """
+    s = str(text or "").strip()
+    if len(s) <= limit:
+        return html.escape(s)
+    head = s[:limit].rstrip()
+    space = head.rfind(" ")
+    if space > limit // 2:
+        head = head[:space]
+    return html.escape(head.rstrip(" ,.;:")) + "&hellip;"
 
 
 def summarize(raw: dict[str, Any]) -> dict[str, Any]:
@@ -130,6 +156,8 @@ li{margin:6px 0}
 li small{color:var(--muted)}
 .count{display:inline-block;background:var(--ink);color:var(--paper);border-radius:99px;
   padding:1px 9px;font-size:12px;font-variant-numeric:tabular-nums;margin-left:6px}
+summary{cursor:pointer;color:var(--muted);font-size:13px;list-style:revert}
+details ul{margin:8px 0 0}
 .note{border-left:2px solid var(--blue);padding:2px 0 2px 14px;color:var(--muted);font-size:13px;margin:24px 0}
 footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -148,21 +176,44 @@ def groups_html(raw: dict[str, Any], local: bool) -> str:
         if not items:
             continue
         title, detail = GROUPS[code]
+        # Count skills, not findings. One whole-setup finding carries the names of
+        # every skill it covers, and badging that group "1" beside a list of 163
+        # names contradicts the list directly under it.
+        affected = sum(1 if f.get("skill") else len(f.get("evidence", {}).get("names", []))
+                       for f in items)
         if local:
             # Names only ever reach the local page.
-            # Cut first, escape second. The other order can slice an entity in
-            # half and emit `&a` into the page.
-            rows = "".join(
-                "<li>%s<small> &middot; %s</small></li>" % (
-                    html.escape(str(f.get("skill") or "your setup")),
-                    html.escape(str(f.get("detail", ""))[:160]))
-                for f in items)
-            body = "<ul>%s</ul>" % rows
+            rows = []
+            for f in items:
+                name = f.get("skill")
+                if name:
+                    rows.append("<li>%s<small> &middot; %s</small></li>"
+                                % (html.escape(str(name)), clamp(f.get("detail", ""))))
+                    continue
+                # A whole-setup finding names no single skill. Rendering a
+                # placeholder there produced a one-item list reading "your setup"
+                # under a heading that had just counted 163 dormant skills, which
+                # reads as a rendering fault rather than the summary it is. List
+                # the names the finding actually carries.
+                names = [str(n) for n in f.get("evidence", {}).get("names", []) if n]
+                rows.append("<li>%s<small> &middot; %s</small></li>"
+                            % (html.escape(str(f.get("title", ""))), clamp(f.get("detail", ""))))
+                # A full 163-name list buries every other group under it. Show
+                # enough to recognise the setting and say plainly how many were
+                # withheld; the complete list is in the embedded JSON below.
+                rows += ["<li>%s</li>" % html.escape(n) for n in names[:NAME_PREVIEW]]
+                rest = names[NAME_PREVIEW:]
+                if rest:
+                    rows.append("<li><details><summary>and %d more</summary>"
+                                "<ul>%s</ul></details></li>"
+                                % (len(rest), "".join("<li>%s</li>" % html.escape(n)
+                                                      for n in rest)))
+            body = "<ul>%s</ul>" % "".join(rows)
         else:
             body = '<p class="sub" style="margin:0">%d skill%s affected. Names stay on the scanned machine.</p>' % (
-                len(items), "" if len(items) == 1 else "s")
+                affected, "" if affected == 1 else "s")
         out.append('<div class="group"><h2>%s<span class="count">%d</span></h2><p>%s</p>%s</div>'
-                   % (html.escape(title), len(items), html.escape(detail), body))
+                   % (html.escape(title), affected, html.escape(detail), body))
     return "".join(out)
 
 
