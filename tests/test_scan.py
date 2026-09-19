@@ -943,3 +943,98 @@ class RootsFollowTheHostsRead(unittest.TestCase):
             inspect_setup.plugin_cache_roots = original
         self.assertTrue(any('.claude/plugins/cache' in c for c in seen), seen)
         self.assertTrue(any('.codex/plugins/cache' in c for c in seen), seen)
+
+
+class SymlinkedSkillFile(unittest.TestCase):
+    """A SKILL.md that is itself a symlink into a shared skill. On a real server,
+    `_gstack-command/SKILL.md -> gstack/SKILL.md` and many like it, which is a
+    working layout. The scan aborted outright on the first one and never read the
+    other 300 skills on that machine."""
+
+    def test_a_symlinked_skill_file_is_inventoried_not_fatal(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / 'real').mkdir()
+            (root / 'real' / 'SKILL.md').write_text(
+                '---\nname: real\ndescription: d\n---\n\nbody\n')
+            (root / 'alias').mkdir()
+            (root / 'alias' / 'SKILL.md').symlink_to(root / 'real' / 'SKILL.md')
+            inv = inventory([root])
+        names = {s['name'] for s in inv['skills']}
+        self.assertEqual(names, {'real', 'alias'})
+
+    def test_the_digest_is_of_the_bytes_actually_read(self):
+        """Digesting the decoded text would be wrong: errors='replace' rewrites
+        bytes, so two different files could collapse to one digest and be reported
+        as identical copies."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for name, body in (('a', b'\xff\xfe one'), ('b', b'\xff\xfe two')):
+                (root / name).mkdir()
+                (root / name / 'SKILL.md').write_bytes(
+                    b'---\nname: ' + name.encode() + b'\ndescription: d\n---\n' + body)
+            inv = inventory([root])
+        digests = {s['skill_md_sha256'] for s in inv['skills']}
+        self.assertEqual(len(digests), 2)
+
+    def test_an_unreadable_skill_file_is_skipped_with_a_warning_not_a_crash(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / 'broken').mkdir()
+            (root / 'broken' / 'SKILL.md').symlink_to(root / 'nowhere' / 'SKILL.md')
+            (root / 'fine').mkdir()
+            (root / 'fine' / 'SKILL.md').write_text('---\nname: fine\ndescription: d\n---\n')
+            inv = inventory([root])
+        self.assertEqual({s['name'] for s in inv['skills']}, {'fine'})
+
+
+class SkillSubtreesAreNotMoreSkills(unittest.TestCase):
+    """Found on a server, invisible on a laptop. Both cases produced dozens of
+    confirmed collisions that were entirely the scan's own doing."""
+
+    def declare(self, path: Path, name: str):
+        path.mkdir(parents=True, exist_ok=True)
+        (path / 'SKILL.md').write_text(f'---\nname: {name}\ndescription: d\n---\n')
+
+    def test_a_skill_shipping_copies_for_other_harnesses_counts_once(self):
+        """`gstack/.agents/skills/gstack/SKILL.md`, plus .cursor, .factory,
+        .gbrain, .hermes, .kiro. Nine copies of every gstack skill, reported as a
+        nine-way collision. Only the top-level directory is addressable."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self.declare(root / 'gstack', 'gstack')
+            for harness in ('.agents', '.cursor', '.factory', '.gbrain'):
+                self.declare(root / 'gstack' / harness / 'skills' / 'gstack', 'gstack')
+            inv = inventory([root])
+        self.assertEqual([s['name'] for s in inv['skills']], ['gstack'])
+
+    def test_backups_inside_a_skill_root_are_not_skills(self):
+        """`.codex/skills/.floom/backups/<timestamp>/SKILL.md`. Every backup was
+        inventoried as a skill named after its timestamp and then reported as a
+        39-way name collision."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self.declare(root / 'real', 'real')
+            for stamp in ('2026-05-23T23-06-47', '2026-05-23T23-07-27'):
+                self.declare(root / '.floom' / 'backups' / stamp, 'real')
+            inv = inventory([root])
+        self.assertEqual([s['name'] for s in inv['skills']], ['real'])
+
+    def test_a_skill_directly_in_the_root_is_still_found(self):
+        """The descent guard must not swallow the ordinary case: a root that holds
+        SKILL.md files one level down."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for n in ('a', 'b', 'c'):
+                self.declare(root / n, n)
+            inv = inventory([root])
+        self.assertEqual(sorted(s['name'] for s in inv['skills']), ['a', 'b', 'c'])
+
+    def test_a_skill_md_at_the_root_itself_is_still_found(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / 'SKILL.md').write_text('---\nname: top\ndescription: d\n---\n')
+            self.declare(root / 'nested', 'nested')
+            inv = inventory([root])
+        self.assertEqual(sorted(s['name'] for s in inv['skills']),
+                         sorted([Path(d).name, 'nested']))

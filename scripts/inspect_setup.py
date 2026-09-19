@@ -112,9 +112,22 @@ def bounded_files(root: Path, name: str, ceiling: int = MAX_SCAN_FILES):
         if real in visited:
             dirs[:]=[];continue
         visited.add(real)
+        # A directory holding a SKILL.md is a skill, and everything below it is
+        # that skill's own content. Descending further found nine copies of every
+        # gstack skill on one server, because the skill ships a distribution for
+        # each harness inside itself: gstack/.agents/skills/gstack/SKILL.md,
+        # gstack/.cursor/..., gstack/.factory/... Only the top one is addressable.
+        if name in files and os.path.realpath(parent) != os.path.realpath(root):
+            # Stop descending, but still yield this directory's own SKILL.md below.
+            dirs[:]=[]
         keep=[]
         for d in sorted(dirs):
             if d in SKIP_DIRS:continue
+            # Hidden directories inside a skill root are machinery, not skills. The
+            # same server keeps `.codex/skills/.floom/backups/<timestamp>/SKILL.md`,
+            # and every backup was inventoried as a skill named after its timestamp,
+            # then reported as a 39-way name collision.
+            if d.startswith('.'):continue
             if not os.access(os.path.join(parent,d), os.R_OK | os.X_OK):
                 unreadable.append(os.path.join(parent,d));continue
             keep.append(d)
@@ -236,12 +249,49 @@ def inventory(roots: list[Path]) -> dict[str,Any]:
                 warnings.append(f'{MAX_INVENTORY}-skill inventory limit reached; '
                                 'counts below are a floor, not a ceiling')
                 break
-            if str(p.resolve()) in seen:continue
-            seen.add(str(p.resolve()))
-            if p.stat().st_size>262144:
+            # Deduplicate on the directory name together with the resolved file,
+            # not the resolved file alone. Two directories sharing one SKILL.md are
+            # two separately addressable skills: on a real server
+            # `_gstack-command/SKILL.md` links to `gstack/SKILL.md` and both names
+            # work. Keying on the resolved path alone inventoried one of them and
+            # left the other looking dormant and missing from disk at once.
+            #
+            # The same name resolving to the same file, reached through two roots,
+            # is still one skill and is still collapsed.
+            try:
+                key=(p.parent.name, str(p.resolve()))
+            except OSError as e:
+                warnings.append(f'Could not resolve {p}: {e}')
+                continue
+            if key in seen:continue
+            seen.add(key)
+            try:
+                size=p.stat().st_size
+            except OSError as e:
+                # A dangling symlink, which is a real and silent failure mode: the
+                # entry shows in a directory listing and resolves nowhere.
+                warnings.append(f'Skill file does not resolve: {p} ({e.strerror})')
+                continue
+            if size>262144:
                 warnings.append(f'Skipped oversized SKILL.md: {p}')
                 continue
-            text=p.read_text(encoding='utf-8',errors='replace')
+            # Read the bytes once and digest exactly what was read. Calling
+            # file_digest(p) re-opened the path and refused any symlink, which
+            # aborted the whole scan on a machine where SKILL.md files are links
+            # into a shared skill: `_gstack-command/SKILL.md -> gstack/SKILL.md`,
+            # a working layout, and 300 skills went unscanned because of one of
+            # them. That guard is right for the apply path, which must not follow
+            # a link out of the tree it was told to touch, and wrong here, where
+            # the file is being read either way.
+            #
+            # Digesting the decoded text would also be wrong: errors='replace'
+            # rewrites bytes, so two different files could share a digest.
+            try:
+                raw=p.read_bytes()
+            except OSError as e:
+                warnings.append(f'Could not read {p}: {e}')
+                continue
+            text=raw.decode('utf-8',errors='replace')
             h=skill_header(text)
             # Key on the directory name, because that is what the host uses to
             # address a skill, and record the declared name as an alias.
@@ -280,7 +330,7 @@ def inventory(roots: list[Path]) -> dict[str,Any]:
                 'declared_name':declared if declared and declared!=p.parent.name else None,
                 'aliases':sorted({a for a in (declared,p.parent.name) if a}),
                 'description':h.get('description',''),
-                'version':h.get('version'),'edge_id_claim':h.get('edge-id'),'edge_version_claim':h.get('edge-version'),'edge_url_claim':h.get('edge-url'),'path':str(p.resolve()),'skill_md_sha256':file_digest(p),
+                'version':h.get('version'),'edge_id_claim':h.get('edge-id'),'edge_version_claim':h.get('edge-version'),'edge_url_claim':h.get('edge-url'),'path':str(p.resolve()),'skill_md_sha256':hashlib.sha256(raw).hexdigest(),
                 'fingerprint_scope':'SKILL.md only; selected bundles need full manifest at freeze time',
                 'full_content_loaded':False})
     if unreadable:
