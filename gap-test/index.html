@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Find what your AI is good at, where it struggles, and which skills could close the gap.">
+  <title>Agent Skills Gap Test — Edge</title>
+  <link rel="icon" href="../ui/assets/brand/favicon-32x32.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="#top" aria-label="Edge home"><span class="edge-mark" aria-hidden="true"></span>EDGE</a>
+    <span>Agent Skills Gap Test</span>
+    <button class="text-button" id="privacy-button" type="button">Private by default</button>
+  </header>
+
+  <main id="top">
+    <section class="hero" id="input-view">
+      <div class="hero-copy">
+        <p class="eyebrow">YOUR AI HAS A RÉSUMÉ NOW.</p>
+        <h1>What is your agent <em>terrible</em> at?</h1>
+        <p class="lede">Analyze recent Claude or Codex work. Find the missing expertise—and get a card worth sharing.</p>
+        <div class="trust-line"><span></span> Runs locally in this browser. Nothing is uploaded.</div>
+      </div>
+
+      <div class="input-panel" id="drop-zone">
+        <div class="tabs" role="tablist" aria-label="Input method">
+          <button class="tab active" id="upload-tab" role="tab" aria-selected="true" data-mode="upload">Upload logs</button>
+          <button class="tab" id="paste-tab" role="tab" aria-selected="false" data-mode="paste">Paste prompts</button>
+        </div>
+        <div class="upload-mode" id="upload-mode">
+          <input id="file-input" type="file" accept=".jsonl,.json,.txt,.log" multiple hidden>
+          <button class="drop-target" id="file-button" type="button">
+            <span class="plus">+</span>
+            <strong>Drop Claude or Codex logs</strong>
+            <small>or choose JSONL, JSON, TXT, or LOG files</small>
+          </button>
+          <div class="file-list" id="file-list" aria-live="polite"></div>
+        </div>
+        <div class="paste-mode" id="paste-mode" hidden>
+          <label for="prompt-input">Recent prompts or session transcript</label>
+          <textarea id="prompt-input" placeholder="Paste at least two prompts or a session transcript…" spellcheck="false"></textarea>
+        </div>
+        <p class="error" id="input-error" role="alert" hidden></p>
+        <button class="primary" id="analyze-button" type="button">Analyze my agent <span>→</span></button>
+        <p class="fine-print">This measures patterns in the supplied sample—not your model’s intelligence.</p>
+      </div>
+    </section>
+
+    <section class="loading" id="loading-view" hidden aria-live="polite">
+      <div class="scan-line"></div>
+      <p>READING THE EVIDENCE</p>
+      <h2 id="loading-message">Finding recurring task categories…</h2>
+      <div class="loading-steps"><span class="done">01 Parse</span><span>02 Classify</span><span>03 Match skills</span><span>04 Build card</span></div>
+    </section>
+
+    <section class="results" id="result-view" hidden>
+      <div class="results-head">
+        <div><p class="eyebrow">YOUR AGENT’S SKILLS GAP</p><h2 id="result-headline"></h2></div>
+        <button class="text-button" id="start-over" type="button">Run another test</button>
+      </div>
+
+      <div class="result-grid">
+        <article class="score-sheet">
+          <div class="score-meta"><span id="sample-size"></span><span>Observed sample</span></div>
+          <div id="category-list"></div>
+          <div class="surprise"><span>Surprising weakness</span><strong id="surprising"></strong></div>
+        </article>
+
+        <article class="share-panel">
+          <canvas id="share-card" width="1200" height="630" aria-label="Shareable Agent Skills Gap card"></canvas>
+          <div class="share-actions">
+            <button class="primary" id="download-card" type="button">Download share card</button>
+            <button class="secondary" id="copy-caption" type="button">Copy caption</button>
+          </div>
+          <p class="fine-print">The card contains only category labels and ratings—never your prompts.</p>
+        </article>
+      </div>
+
+      <section class="recommendations">
+        <div><h3><span id="recommendation-count"></span> skills could improve your setup</h3><p>Matched to the observed gaps in this sample.</p></div>
+        <ol id="skill-list"></ol>
+        <a class="deep-link" href="../ui/landing.html">Test the fixes with Brain Surgery <span>→</span></a>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="privacy-dialog">
+    <button class="dialog-close" type="button" aria-label="Close">×</button>
+    <p class="eyebrow">PRIVATE BY DEFAULT</p>
+    <h2>Your work stays on this device.</h2>
+    <p>Files are read in your browser. No prompt, transcript, filename, or result is uploaded. The downloaded card contains only the summary you can already see.</p>
+  </dialog>
+
+  <script src="analyzer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

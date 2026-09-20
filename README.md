@@ -73,6 +73,11 @@ measurement of your setup.
 
 ## Layout
 
+The standalone Agent Skills Gap Test lives in [`gap-test/`](gap-test/). Serve that directory,
+then paste recent prompts or upload Claude/Codex JSONL logs. Analysis and PNG card generation
+happen entirely in the browser; no raw prompt, filename, or transcript is uploaded. Sparse
+categories are reported as `Not measured`, and recommendations are capped at seven skills.
+
 ```
 SKILL.md        skill entry point
 METHOD.md        the measurement methodology
