@@ -15,7 +15,7 @@ Brain Surgery is built so you can verify it rather than trust it. This file stat
 - Change your live agent configuration or files
 - Upload or share any report data
 - Read credentials, SSH keys, or environment secrets
-- Make network calls to Edge
+- Make network calls to AGI Labs
 
 ## Candidate skills are treated as hostile
 
@@ -23,11 +23,11 @@ A candidate skill under test is never trusted. It runs in a temporary workspace 
 
 ## Be precise about "local"
 
-Brain Surgery stores and processes on your machine and sends nothing to Edge unless you
+Brain Surgery stores and processes on your machine and sends nothing to AGI Labs unless you
 explicitly share through a configured publishing endpoint. This is not the same as "nothing
 ever leaves your machine": if you run an optional comparison against a cloud model, selected
 task content still goes to that configured provider, exactly as it does for any normal agent
-run. The three flows are distinct: local processing, model-provider traffic, and Edge traffic
+run. The three flows are distinct: local processing, model-provider traffic, and AGI Labs traffic
 (off by default).
 
 ## Verify the source

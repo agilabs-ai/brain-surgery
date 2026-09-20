@@ -1,4 +1,4 @@
-# Brain Surgery, by Edge
+# Brain Surgery, by AGI Labs
 
 Audit an AI coding-agent setup against your own recent work. Brain Surgery starts with a
 read-only inventory of installed skills and evidence of whether they were reached. When a

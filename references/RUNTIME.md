@@ -59,7 +59,7 @@ existing runner, using its proven restrictions. After that, connect summary publ
 The end-user workflow stays: scan → report → optional comparison → optional share or review.
 The CLI's technical subcommands are implementation steps, not new UI choices.
 
-The approved Edge presentation is a product UI contract, not evidence that publishing,
+The approved AGI Labs presentation is a product UI contract, not evidence that publishing,
 adapter certification, a cross-model matrix, or a production deployment exists. Render those
 states only when the corresponding runtime evidence exists; otherwise hide or mark them
 unavailable.

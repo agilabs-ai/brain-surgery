@@ -52,7 +52,8 @@ def test_deploy_tool_only_stages_a_labeled_preview(tmp_path):
         cwd=ROOT, check=True, capture_output=True, text=True,
     )
     page = (tmp_path / "preview" / "index.html").read_text()
-    assert "Brain Surgery by Edge" in page
+    assert "Brain Surgery by AGI Labs" in page
+    assert "getedge.cc" not in page
     assert "DESIGN PREVIEW" in page
     assert "preview:" in result.stdout
 
@@ -61,4 +62,4 @@ def test_deploy_tool_refuses_implicit_remote_publish():
     result = subprocess.run([str(ROOT / "deploy/publish.sh")], cwd=ROOT,
                             capture_output=True, text=True)
     assert result.returncode != 0
-    assert "Remote publishing is disabled" in result.stderr
+    assert "--publish" in result.stderr

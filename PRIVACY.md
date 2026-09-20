@@ -20,13 +20,13 @@ unrelated files in your home directory.
 
 ## What leaves your machine
 
-Nothing to Edge unless you explicitly share and a publishing endpoint has been configured.
+Nothing to AGI Labs unless you explicitly share and a publishing endpoint has been configured.
 Sharing uploads only the reviewed public summary: broad workflow categories and measurements.
 Private task inputs, skill contents, and raw logs are not included in a shared report.
 
 One caveat, stated plainly: if you run the optional evaluation against a cloud model, selected
 task content is sent to that model provider, the same as any normal run of your agent. That
-traffic goes to your configured provider, not to Edge.
+traffic goes to your configured provider, not to AGI Labs.
 
 ## Your controls
 

@@ -25,11 +25,11 @@ class ApprovedReportUITests(unittest.TestCase):
         render(raw, Path(tmp.name))
         return tmp, Path(tmp.name)
 
-    def test_approved_edge_comparison_structure_uses_real_metric(self):
+    def test_approved_agi_labs_comparison_structure_uses_real_metric(self):
         tmp, out = self.render_demo()
         try:
             page = (out / 'local-report.html').read_text()
-            self.assertIn('Edge<span class="brand-divider"></span><span class="brand-product">Brain Surgery', page)
+            self.assertIn('agi labs<span class="brand-divider"></span><span class="brand-product">Brain Surgery', page)
             self.assertIn('class="report-hero"', page)
             self.assertIn('class="public-graphic"', (out / 'public-report.html').read_text())
             self.assertIn('5/6 tasks passed', page)
@@ -126,7 +126,7 @@ class ApprovedReportUITests(unittest.TestCase):
         finally:
             tmp.cleanup()
 
-    def test_social_card_uses_edge_brand_and_matches_each_truthful_state(self):
+    def test_social_card_uses_agi_labs_brand_and_matches_each_truthful_state(self):
         cases = []
         improved = self.raw()
         cases.append((improved, 'Better on this test.', '83<tspan', None))
@@ -144,9 +144,10 @@ class ApprovedReportUITests(unittest.TestCase):
             with self.subTest(phrase=phrase), tempfile.TemporaryDirectory() as d:
                 render(raw, Path(d))
                 svg = (Path(d) / 'social-card.svg').read_text()
-                self.assertIn('>Edge</text>', svg)
-                self.assertIn('Brain Surgery by Edge.', svg)
-                self.assertNotIn('agi labs', svg.lower())
+                self.assertIn('>agi labs</text>', svg)
+                self.assertIn('Brain Surgery by AGI Labs.', svg)
+                self.assertNotIn('getedge.cc', svg)
+                self.assertNotIn('>Edge</text>', svg)
                 self.assertIn(phrase, svg)
                 self.assertIn(detail, svg)
                 if forbidden:

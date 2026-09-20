@@ -13,7 +13,7 @@
 ## What is still infrastructure, not more product UI
 
 - A real Claude Code adapter and Codex adapter connected to the existing evaluator.
-- An approved Edge domain/host for the landing page and exact ZIP. None is configured yet.
+- An approved AGI Labs domain/host for the landing page and exact ZIP. None is configured yet.
 - A tiny report-publishing endpoint that accepts only the allowlisted public summary.
 - Surgery application with fingerprint check + backup + rollback.
 

@@ -1,6 +1,6 @@
 # Brain Surgery report design system
 
-Brain Surgery is an Edge product surface. The approved ZIP owns its visual treatment and
+Brain Surgery is an AGI Labs product surface. The approved ZIP owns its visual treatment and
 copy; runtime schemas and evidence still determine which states and claims can render.
 
 ## Tokens
@@ -9,7 +9,7 @@ copy; runtime schemas and evidence still determine which states and claims can r
 - Primary text: `#050505`
 - Muted text: `#6B6B6B`
 - Border: `#E5E5E5`
-- Accent: Edge blue `#154CFF`
+- Accent: product blue `#154CFF`
 - Soft accent: `#EEF3FF`
 - Font: Inter/system sans fallback
 - Radius: 9px for controls; 12–14px only for report containers
@@ -36,7 +36,7 @@ The local and public summary should look almost identical. Privacy comes from a 
 ## Brain gauge
 
 The left hemisphere represents current task or trial pass rate in black; the right hemisphere
-represents the tested rate in Edge blue. Fill height is data-driven. The bottom rule repeats
+represents the tested rate in product blue. Fill height is data-driven. The bottom rule repeats
 the same comparison in a minimal linear gauge. A scan-only report does not use this visual to
 imply uplift. A model matrix appears only when all of its cells have real replay evidence.
 
