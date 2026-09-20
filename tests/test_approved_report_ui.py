@@ -34,9 +34,22 @@ class ApprovedReportUITests(unittest.TestCase):
             self.assertIn('class="public-graphic"', (out / 'public-report.html').read_text())
             self.assertIn('5/6 tasks passed', page)
             self.assertNotIn('requirements met', page.lower())
-            self.assertNotIn('<div class="model-grid"', page)
+            self.assertIn('<div class="model-grid"', page)
+            self.assertIn('33<small>% · 2/6', page)
+            self.assertIn('50<small>% · 3/6', page)
+            self.assertIn('83<small>% · 5/6', page)
         finally:
             tmp.cleanup()
+
+    def test_complete_demo_rejects_detached_example_work_and_incomplete_model_grid(self):
+        raw = self.raw()
+        raw['example_work']['before'] = 'Detached output'
+        with tempfile.TemporaryDirectory() as d, self.assertRaisesRegex(ValueError, 'reuse the referenced task outputs'):
+            render(raw, Path(d), complete_demo=True)
+        raw = self.raw()
+        del raw['pairs'][0]['comparison_current']
+        with tempfile.TemporaryDirectory() as d, self.assertRaisesRegex(ValueError, 'comparison_current'):
+            render(raw, Path(d), complete_demo=True)
 
     def test_public_report_has_no_private_evidence_or_plan(self):
         raw = json.loads((ROOT / 'examples/demo-result.json').read_text())

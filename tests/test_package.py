@@ -54,7 +54,8 @@ def test_deploy_tool_only_stages_a_labeled_preview(tmp_path):
     page = (tmp_path / "preview" / "index.html").read_text()
     assert "Brain Surgery by AGI Labs" in page
     assert "getedge.cc" not in page
-    assert "DESIGN PREVIEW" in page
+    assert "Copy setup prompt" in page
+    assert "DESIGN PREVIEW" not in page
     assert "preview:" in result.stdout
 
 

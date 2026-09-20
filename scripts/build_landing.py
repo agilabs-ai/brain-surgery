@@ -10,12 +10,9 @@ from pathlib import Path
 
 
 PROMPT = (
-    "Run Brain Surgery using https://github.com/agilabs-ai/brain-surgery. "
-    "Read SKILL.md first, then run the default read-only scan of my permitted recent "
-    "work and installed skills and show me the private report. Only if those findings "
-    "justify a bounded comparison, propose its frozen changes, tasks, criteria, time, "
-    "and usage plan and wait for my approval before running it. "
-    "Keep my live setup unchanged and my report private until I explicitly approve otherwise."
+    "Install Brain Surgery from https://github.com/agilabs-ai/brain-surgery after reviewing "
+    "SKILL.md and its scripts. Scan my recent work and installed skills, then open my private "
+    "report. Ask before running comparisons, changing my setup, or sharing anything."
 )
 
 
@@ -71,6 +68,48 @@ def build(source: str) -> str:
     for old, new in aligned_metrics.items():
         fragment = fragment.replace(old, new)
 
+    # Production landing: one promise, one action, one complete example.
+    fragment = fragment.replace('Find what holds your AI back.<br>Test the fixes on your work.',
+                                'Find what’s holding your AI back.<br>Test a better setup on your own work.')
+    fragment = fragment.replace('<code>Give my AI brain surgery.</code>',
+                                f'<code>{PROMPT}</code>')
+    fragment = fragment.replace('<div class="prompt-box">', '<div class="prompt-box" id="setup-prompt">', 1)
+    fragment = fragment.replace('>Copy prompt<', '>Copy setup prompt<')
+    fragment = fragment.replace('See Example’s scan', 'See example report')
+    fragment = fragment.replace('Example’s scan', 'Example report')
+    fragment = fragment.replace('See Example scan', 'See example report')
+    fragment = fragment.replace('>Example scan<', '>Example report<')
+    fragment = fragment.replace('href="#example" data-route="landing"', 'href="/report.html"')
+    fragment = fragment.replace('href="#example"', 'href="/report.html"')
+    fragment = fragment.replace('href="#example">See example report', 'href="/report.html">See example report')
+    fragment = fragment.replace('How it works</a>', 'Source</a>')
+    fragment = fragment.replace('href="#how" data-scroll="how"',
+                                'href="https://github.com/agilabs-ai/brain-surgery" target="_blank" rel="noreferrer"')
+    fragment = re.sub(r'<p class="participation">.*?</p>', '', fragment, count=1, flags=re.DOTALL)
+    fragment = fragment.replace('Model usage applies. You approve changes.',
+                                'For Claude Code and Codex. Changes need your approval.')
+    fragment = re.sub(r'<section class="community">.*?</section>\s*', '', fragment, count=1, flags=re.DOTALL)
+    fragment = re.sub(r'<section class="section" id="work">.*?</section>\s*', '', fragment, count=1, flags=re.DOTALL)
+    fragment = re.sub(r'<section class="end-cta">.*?</section>\s*', '', fragment, count=1, flags=re.DOTALL)
+    fragment = fragment.replace('I gave my AI brain surgery.', 'Same model. Better setup.')
+    fragment = re.sub(r'<div class="case-person">.*?</div></div>', '</div>', fragment, count=1, flags=re.DOTALL)
+    fragment = fragment.replace('View Example report', 'Open the complete example report')
+    fragment = fragment.replace('Illustrative example only. Sample scores and outputs are not a measured personal result.',
+                                'Fictional tasks and results, provided to show what the complete report contains.')
+
+    compact_steps = '''<section class="section" id="how"><div class="section-head"><div><p class="kicker">HOW IT WORKS</p><h2>Inspect. Test. Review.</h2></div></div><div class="minimal-steps"><div><span>01</span><strong>Inspect</strong><p>Your agent reviews recent work and installed skills.</p></div><div><span>02</span><strong>Test</strong><p>Approve a bounded comparison on the same tasks.</p></div><div><span>03</span><strong>Review</strong><p>See the evidence before changing your setup.</p></div></div></section>'''
+    fragment = re.sub(r'<section class="section" id="how">.*?</section>', compact_steps,
+                      fragment, count=1, flags=re.DOTALL)
+    faq = '''<section class="section"><div class="section-head"><div><p class="kicker">BEFORE YOU START</p><h2>Three things to know.</h2></div></div><div class="faq"><details><summary>What happens when I start?</summary><p>Your agent begins with a read-only scan and opens a private report. If the findings justify testing a change, it proposes the tasks, limits, and usage before asking you to proceed.</p></details><details><summary>What can change?</summary><p>Skills and the project instructions that activate them. You review proposed changes before anything is applied.</p></details><details><summary>What stays private?</summary><p>Your report stays local. Inputs used for an approved comparison may reach your configured model provider. Sharing a report is a separate action.</p></details></div></section>'''
+    fragment = re.sub(r'<section class="section"><div class="faq"><div class="section-head"><div><p class="kicker">BEFORE YOU START</p>.*?</section>',
+                      faq, fragment, count=1, flags=re.DOTALL)
+    fragment = fragment.replace('<a class=""  href="#how">Method</a>',
+                                '<a href="/brain-surgery.zip" download>Download ZIP</a>')
+
+    prompt_action = f'''<div class="prompt-actions" id="setup-prompt"><button class="btn btn-dark" data-action="copy-prompt">Copy setup prompt<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M15 8V4H4v11h4"/></svg></button><details class="prompt-disclosure"><summary>Read the prompt</summary><code>{PROMPT}</code><a class="text-link" href="/brain-surgery.zip" download>Download ZIP ↓</a></details></div>'''
+    fragment = re.sub(r'<div class="prompt-box" id="setup-prompt">.*?</div>', prompt_action,
+                      fragment, count=1, flags=re.DOTALL)
+
     # Keep the approved labels as ordinary in-page links, not dead prototype
     # controls that appear to scan, apply, publish, or reveal evidence.
     destinations = {
@@ -92,14 +131,9 @@ def build(source: str) -> str:
         )
 
     fragment = fragment.replace('data-action="copy-prompt"', 'data-copy-prompt="true"')
-    fragment = fragment.replace(
-        '<span>Paste into your agent.</span>',
-        '<span>Paste into your agent.</span><a class="text-link" href="/brain-surgery.zip" download>Download skill ↓</a>',
-        1,
-    )
     fragment = re.sub(
         r'<p class="tiny" style="margin-top:12px;font-size:10px">Sample scores and outputs,[^<]*</p>',
-        '<p class="tiny" id="example-note" style="margin-top:12px;font-size:10px">Illustrative example only. Sample scores and outputs are not a measured personal result.</p>',
+        '<p class="tiny" id="example-note" style="margin-top:12px;font-size:10px">Fictional tasks and results, provided to show what the complete report contains.</p>',
         fragment,
         count=1,
     )
@@ -111,11 +145,21 @@ def build(source: str) -> str:
         '<span>Brain Surgery, by AGI Labs.</span>',
         '<span id="privacy-note">Brain Surgery, by AGI Labs. Local-first; nothing is uploaded by this page.</span>',
     )
+    fragment = fragment.replace('<a class=""  href="#how">Method</a>',
+                                '<a href="/brain-surgery.zip" download>Download ZIP</a>')
 
     if "data-action=" in fragment or "data-route=" in fragment:
         raise ValueError("unsafe prototype controls remain in production fragment")
 
     safe_prompt = json.dumps(PROMPT).replace("<", "\\u003c")
+    production_css = '''
+.minimal-steps{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.minimal-steps>div{padding:26px 24px 28px 0;border-right:1px solid var(--line)}
+.minimal-steps>div+div{padding-left:24px}.minimal-steps>div:last-child{border-right:0}
+.minimal-steps span{display:block;font:9px var(--mono);color:#999;margin-bottom:18px}.minimal-steps strong{font-size:16px;font-weight:550}.minimal-steps p{font-size:12px;line-height:1.65;color:#777;margin-top:8px}
+.prompt-actions{width:min(565px,100%);margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:9px}.prompt-actions>.btn{min-width:190px}.prompt-disclosure{width:100%;font-size:11px;color:#666}.prompt-disclosure summary{cursor:pointer;list-style:none;text-decoration:underline;text-underline-offset:3px}.prompt-disclosure summary::-webkit-details-marker{display:none}.prompt-disclosure code{display:block;text-align:left;white-space:normal;font:11px/1.65 var(--mono);padding:14px 16px;margin-top:10px;border:1px solid var(--line);border-radius:9px;background:#fff}.prompt-disclosure .text-link{justify-content:center}.landing-hero{min-height:auto;padding-bottom:72px}.case-shell{margin-top:24px}
+@media(max-width:640px){.minimal-steps{grid-template-columns:1fr}.minimal-steps>div,.minimal-steps>div+div{padding:21px 0;border-right:0;border-bottom:1px solid var(--line)}.minimal-steps>div:last-child{border-bottom:0}.prompt-actions>.btn{width:100%;min-height:46px}}
+'''
     return f'''<!doctype html>
 <html lang="en" data-theme="light"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -125,8 +169,7 @@ def build(source: str) -> str:
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/favicon-32x32.png">
 <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
 <meta name="description" content="Find what holds your AI back, then test targeted fixes on your work.">
-<style>{css}</style></head><body>
-<div class="preview-ribbon" role="note">DESIGN PREVIEW · ILLUSTRATIVE EXAMPLE · SAMPLE RESULTS · NO SCAN RUNS ON THIS PAGE</div>
+<style>{css}{production_css}</style></head><body>
 {fragment}
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="/assets/approved-cloud.js"></script>
