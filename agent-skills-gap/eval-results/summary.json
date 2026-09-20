@@ -1,0 +1,36 @@
+{
+  "schema_version": "getedge-featured-skill-eval/0.1",
+  "skill": "agent-skills-gap",
+  "run_date": "2026-09-19",
+  "agent": "codex",
+  "judge": "codex",
+  "comparison": "installed skill versus empty baseline",
+  "pairs": 18,
+  "valid_pairs": 18,
+  "wins": {"skill": 18, "baseline": 0, "tie": 0},
+  "objective_verify": {"skill_passed": 18, "baseline_passed": 0},
+  "tool_errors": {"skill": 0, "baseline": 0},
+  "skill_read": {"observed": 18, "of": 18, "telemetry": "transcript command evidence"},
+  "mean_seconds": {"skill": 85.9, "baseline": 117.3},
+  "tasks": [
+    {"id": "agent-skills-gap-realistic", "input": "standard_jsonl", "pairs": 6, "skill_wins": 6, "skill_verify": 6, "baseline_verify": 0, "mean_seconds_skill": 91.7, "mean_seconds_baseline": 134.8},
+    {"id": "agent-skills-gap-nested", "input": "nested_agent_jsonl", "pairs": 6, "skill_wins": 6, "skill_verify": 6, "baseline_verify": 0, "mean_seconds_skill": 84.5, "mean_seconds_baseline": 104.8},
+    {"id": "agent-skills-gap-plain", "input": "plain_prompts", "pairs": 6, "skill_wins": 6, "skill_verify": 6, "baseline_verify": 0, "mean_seconds_skill": 81.5, "mean_seconds_baseline": 112.3}
+  ],
+  "verifier_correction": {
+    "task": "agent-skills-gap-plain",
+    "sample": 6,
+    "original_issue": "Verifier required literal recommendation ID spreadsheets although the prompt required only relevant recommendations.",
+    "correction": "Check Spreadsheet work category relevance.",
+    "outputs_changed": false,
+    "rerun": false,
+    "rejudged": true
+  },
+  "limitations": [
+    "Empty baseline, not an incumbent-skill comparison.",
+    "One agent and judge family.",
+    "Codex has no formal skill-load telemetry; transcript reads were audited separately.",
+    "Publisher-authored tasks and verifiers.",
+    "Judge did not inspect rendered pixels."
+  ]
+}

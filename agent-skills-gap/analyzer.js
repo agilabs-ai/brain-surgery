@@ -30,8 +30,8 @@
     {
       id: "coding",
       label: "Coding",
-      task: /\b(code|coding|bug|fix|implement|refactor|test|build|repository|repo|git|branch|python|javascript|typescript|react|api|database|deploy)\b/i,
-      friction: /\b(build failed|tests? fail|regression|syntax error|traceback|wrong implementation|broke|doesn.t compile|didn.t fix)\b/i,
+      task: /\b(code|coding|bug|implement|refactor|test|repository|repo|git|branch|python|javascript|typescript|react|api|database|deploy)\b/i,
+      friction: /\b(build failed|tests? fail|regression (?:failure|bug)|syntax error|traceback|wrong implementation|broke|doesn.t compile|didn.t fix)\b/i,
       skills: ["review", "workplan", "hindsight-coding-agent"],
     },
     {
@@ -49,8 +49,6 @@
       skills: ["agent-infra-fixer", "run-to-publishable-result", "local-session-audit"],
     },
   ];
-
-  const GENERAL_FRICTION = /\b(wtf|what the fuck|terrible|horrible|wrong|ignored|broken|failed|failure|why did you|doesn.t make sense|completely missed)\b/i;
 
   function flattenStrings(value, out) {
     if (typeof value === "string") out.push(value);
@@ -112,7 +110,7 @@
       for (const entry of entries) {
         if (!category.task.test(entry.text)) continue;
         tasks += 1;
-        if (category.friction.test(entry.text) || GENERAL_FRICTION.test(entry.text)) friction += 1;
+        if (category.friction.test(entry.text)) friction += 1;
       }
       return { ...category, tasks, friction, ...levelFor(tasks, friction) };
     });
