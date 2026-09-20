@@ -36,18 +36,41 @@ import time
 from pathlib import Path
 
 PROTOCOL = 'brain-surgery-adapter/0.3'
+SKILL_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
+
+
+def unsupported_request(request: dict) -> str | None:
+    """Fail before launch when the Codex CLI cannot enforce a requested limit."""
+    limit = (request.get('limits') or {}).get('max_total_tokens')
+    if limit is not None:
+        return 'Codex CLI cannot enforce limits.max_total_tokens; no model call was made'
+    return None
+
+
+def prompt_with_contract(request: dict) -> str:
+    return (f"<run_instructions>\n{request.get('instructions', '')}\n</run_instructions>\n\n"
+            f"<permitted_context>\n{request.get('context', '')}\n</permitted_context>\n\n"
+            f"<task>\n{request['prompt']}\n</task>")
 
 
 def place_candidate(workspace: Path, configuration: dict) -> str | None:
     skill = configuration.get('skill')
     if not skill:
         return None
-    name, source = skill['name'], Path(skill['source'])
+    name, source = skill['name'], Path(skill['source']).resolve()
+    if not isinstance(name, str) or not SKILL_NAME.fullmatch(name):
+        raise ValueError('candidate skill name must be one safe path component')
+    if not source.is_dir() or any(path.is_symlink() for path in source.rglob('*')):
+        raise ValueError('candidate skill source must be a directory without symlinks')
     dest = workspace / '.agents' / 'skills' / name
-    dest.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        raise ValueError('candidate skill destination already exists')
+    dest.mkdir(parents=True)
     for item in source.iterdir():
         if item.is_file():
             shutil.copy2(item, dest / item.name)
+        elif item.is_dir():
+            shutil.copytree(item, dest / item.name)
     return name
 
 
@@ -100,6 +123,13 @@ def classify_status(returncode: int, out: str) -> str:
 
 
 def run(request: dict) -> dict:
+    unsupported = unsupported_request(request)
+    if unsupported:
+        return {'protocol': PROTOCOL, 'model': request.get('model'),
+                'status': 'infrastructure_error', 'error': unsupported,
+                'usage': {'total_tokens': 0},
+                'invocation': {'complete': False, 'target_loaded': None},
+                'harness': 'codex'}
     workspace = Path(request['workspace']).resolve()
     skill = place_candidate(workspace, json.loads(request['configuration']))
     limits = request.get('limits') or {}
@@ -107,8 +137,10 @@ def run(request: dict) -> dict:
     cmd = ['codex', 'exec',
            '--cd', str(workspace),
            '--sandbox', 'workspace-write',
+           '--model', request['model'],
+           '--ephemeral',
            '--skip-git-repo-check',
-           request['prompt']]
+           prompt_with_contract(request)]
 
     started = time.time()
     try:

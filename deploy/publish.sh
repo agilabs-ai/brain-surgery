@@ -1,59 +1,43 @@
 #!/usr/bin/env bash
-# Push the agilabs.cc preview content to Hetzner.
+# Build the approved Edge design preview locally.
 #
-#   deploy/publish.sh            build and sync
-#   deploy/publish.sh --dry-run  show what would change, touch nothing
+#   deploy/publish.sh --build-only /absolute/output/directory
 #
-# Content only. It never enables a site, never reloads nginx and never touches
-# DNS or the certificate: enable-agilabs.sh owns those, and it is run once.
-# Re-running this against a live site is therefore safe and is how an updated
-# report ships.
+# Remote publishing is deliberately disabled. The approved artifact is still a
+# labeled design preview, and no Edge production domain or host has been approved.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HOST=hetzner
-REMOTE=/var/www/agilabs-brain-surgery
-DRY=(); [[ "${1:-}" == "--dry-run" ]] && DRY=(--dry-run)
+if [[ "${1:-}" != "--build-only" || -z "${2:-}" || "${2:-}" != /* || -n "${3:-}" ]]; then
+  echo "Remote publishing is disabled: no Edge production domain/host is approved." >&2
+  echo "Build the labeled preview with: $0 --build-only /absolute/output/directory" >&2
+  exit 2
+fi
+OUT="$2"
+mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"
 
-STAGE="$(mktemp -d "${TMPDIR:-/tmp}/agilabs-publish.XXXXXX")"
+STAGE="$(mktemp -d "${TMPDIR:-/tmp}/brain-surgery-preview.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
 
-# Built fresh rather than copied from out/, so what ships is what the current
-# result.json and the current renderer produce, not whatever was left in the
-# working tree from the last thing someone was looking at.
-python3 "$ROOT/scripts/render_grid_report.py" --input "$ROOT/eval/result.json" \
-  --out "$STAGE/report.html"
+# Derive the static staging artifact from the approved UI source. The source
+# prototype remains intact for review, but its private fixture payload, router,
+# preview dock, and simulated mutation/publishing controls never enter staging.
+"$ROOT/deploy/build_stage.sh" "$STAGE"
 
-# The landing page is the site root. The file is named landing.html in the repo
-# because that is what it is; on the server it has to be index.html because that
-# is what nginx serves for /.
-cp "$ROOT/ui/landing.html" "$STAGE/index.html"
-mkdir -p "$STAGE/assets"
-cp -R "$ROOT/ui/assets/brand" "$STAGE/assets/brand"
+grep -q 'Brain Surgery by Edge' "$STAGE/index.html" || {
+  echo "refusing to stage: approved Edge title missing" >&2; exit 1;
+}
+grep -q 'DESIGN PREVIEW' "$STAGE/index.html" || {
+  echo "refusing to stage: sample-data preview label missing" >&2; exit 1;
+}
 
-"$ROOT/scripts/package.sh" "$STAGE" >/dev/null
-sha=$(shasum -a 256 "$STAGE/brain-surgery.zip" | awk '{print $1}')
-
-# --delete is what removes files that no longer belong, which is the only way a
-# page that was taken out of the site actually stops being served. The remote
-# directory holds nothing but this content, so there is nothing else to lose.
-rsync -a --delete "${DRY[@]}" --itemize-changes "$STAGE/" "$HOST:$REMOTE/"
-
-if [[ ${#DRY[@]} -eq 0 ]]; then
-  # Ownership and modes are fixed here rather than with rsync's --chmod, because
-  # the rsync macOS ships is 2.6.9 and rejects the D/F prefixes outright. They
-  # are not cosmetic: -a carries this machine's modes across, and a directory
-  # that lands as 0700 owned by an unknown uid is one nginx cannot traverse.
-  # Every request then answers 403 while the files look correct in a listing.
-  ssh "$HOST" "chown -R root:www-data $REMOTE && \
-               find $REMOTE -type d -exec chmod 755 {} + && \
-               find $REMOTE -type f -exec chmod 644 {} +"
-  # Proof, not assumption: ask the server whether the user nginx runs as can
-  # actually read the page, rather than trusting that the chown above did it.
-  ssh "$HOST" "sudo -u www-data test -r $REMOTE/index.html && \
-               sudo -u www-data test -r $REMOTE/report.html && \
-               echo 'www-data can read index.html and report.html'"
-fi
+grep -q 'href="/brain-surgery.zip"' "$STAGE/index.html" || {
+  echo "refusing to stage: package download link missing" >&2; exit 1;
+}
+sha=$(cat "$STAGE/brain-surgery.zip.sha256")
+cp -R "$STAGE/." "$OUT/"
 
 echo
+echo "preview: $OUT/index.html"
 echo "zip sha256: $sha"

@@ -87,6 +87,9 @@ SCHEMAS: dict[str, dict[str, type | tuple[type, ...]]] = {
         "load_attempts": int, "confirmed_loads": int, "failed_loads": int,
         "sessions_analyzed": int, "turns_analyzed": int, "window_days": int,
         "finding_counts": dict, "evaluation_performed": bool,
+        "finding_groups": dict, "finding_confidence_counts": dict,
+        "resolved_loads_count": int, "scope": str,
+        "harness_sessions_excluded": int,
         "change_status": str, "scan_complete": bool,
     },
     "brain-surgery-public/0.4": {
@@ -95,6 +98,11 @@ SCHEMAS: dict[str, dict[str, type | tuple[type, ...]]] = {
         "improved_tasks": int, "unchanged_tasks": int, "regressed_tasks": int,
         "workflows": list, "workflow_count": int, "skills_inspected": int,
         "finding_codes": list, "method_version": str, "model_family": str,
+        "example": bool, "invalid_pairs": int,
+        "before_percent": (int, type(None)), "after_percent": (int, type(None)),
+        "delta_points": (int, float, type(None)),
+        "model_lift": (int, float, type(None)),
+        "stronger_model": (str, type(None)), "evaluator_type": str,
         "change_status": str, "source": str,
     },
 }
@@ -109,10 +117,39 @@ SECRET_SHAPED = re.compile(
     r"|(api[_-]?key|token|secret|password|passwd)\s*[=:]\s*\S", re.I)
 SAFE_REMOTE = re.compile(r"^[A-Za-z0-9._@-]+$")
 SAFE_PATH = re.compile(r"^/[A-Za-z0-9._/-]+$")
+SCAN_FINDING_CODES = {"no_description", "shadowed", "load_failed", "inventory_gap",
+                      "duplicated", "dormant", "no_evidence"}
+SCAN_CONFIDENCE = {"confirmed", "suspected", "observation"}
+COMPARISON_FINDING_CODES = {"invocation", "conflict", "keep", "unknown"}
+PUBLIC_MODEL_FAMILIES = {"Claude", "GPT", "Qwen", "Gemini", "Other", "Not shared", None}
+WORKFLOW_FIELDS = {"key", "label", "tasks", "before", "after", "before_total", "after_total", "invocation"}
+INVOCATION_FIELDS = {"opportunities", "observed", "before", "after"}
+PUBLIC_WORKFLOWS = {
+    "presentations": "Presentations", "writing": "Writing", "coding": "Coding",
+    "research": "Research", "spreadsheets": "Spreadsheets", "design": "Design",
+    "other": "Other work",
+}
 
 
 class Refused(Exception):
     """A guard said no. Nothing has been transferred."""
+
+
+def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object only when every key occurs exactly once.
+
+    The publisher transfers the original summary bytes.  Accepting JSON's
+    last-key-wins convention would let an earlier duplicate carry private text
+    that disappears from the parsed object while remaining in those bytes.
+    ``object_pairs_hook`` applies at every nesting level, so this closes both
+    top-level and nested variants of that mismatch.
+    """
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise Refused("public summary contains duplicate JSON key %r" % key)
+        out[key] = value
+    return out
 
 
 def detect_kind(d: Path) -> str:
@@ -147,7 +184,8 @@ def collect(d: Path, kind: str) -> list[tuple[str, str]]:
 
 def validate_summary(path: Path, kind: str) -> dict[str, Any]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"),
+                          object_pairs_hook=reject_duplicate_keys)
     except (OSError, ValueError) as e:
         raise Refused("%s is not readable JSON: %s" % (path, e)) from None
     if not isinstance(data, dict):
@@ -159,6 +197,11 @@ def validate_summary(path: Path, kind: str) -> dict[str, Any]:
     if declared not in KINDS[kind]["schemas"]:
         raise Refused("%s declares schema_version %r, which does not belong to a %s report"
                       % (path, declared, kind))
+    allowed_fields = {"schema_version", *SCHEMAS[declared]}
+    extra_fields = sorted(set(data) - allowed_fields)
+    if extra_fields:
+        raise Refused("%s contains fields outside the %s public allowlist: %s"
+                      % (path, declared, ", ".join(extra_fields)))
     for field, typ in SCHEMAS[declared].items():
         if field not in data:
             raise Refused("%s is missing required field %r for %s" % (path, field, declared))
@@ -183,6 +226,71 @@ def validate_summary(path: Path, kind: str) -> dict[str, Any]:
             raise Refused("%s says measured=%s but carries dormant=%r. Refusing to publish a "
                           "summary that disagrees with itself about what was measured."
                           % (path, data["measured"], data["dormant"]))
+        for field in ("finding_counts", "finding_groups"):
+            unknown = set(data[field]) - SCAN_FINDING_CODES
+            if unknown:
+                raise Refused("%s field %r contains unknown finding codes: %s"
+                              % (path, field, ", ".join(sorted(unknown))))
+        if set(data["finding_confidence_counts"]) != SCAN_CONFIDENCE:
+            raise Refused("%s finding_confidence_counts must contain only %s"
+                          % (path, ", ".join(sorted(SCAN_CONFIDENCE))))
+        for code, count in data["finding_counts"].items():
+            if type(count) is not int or count < 0:
+                raise Refused("%s finding_counts.%s must be a non-negative integer" % (path, code))
+        for code, group in data["finding_groups"].items():
+            if not isinstance(group, dict) or set(group) != {"count", "confidence"}:
+                raise Refused("%s finding_groups.%s has fields outside the public allowlist" % (path, code))
+            if type(group["count"]) is not int or group["count"] < 0:
+                raise Refused("%s finding_groups.%s.count must be a non-negative integer" % (path, code))
+            if group["confidence"] not in SCAN_CONFIDENCE | {None}:
+                raise Refused("%s finding_groups.%s.confidence is not public schema data" % (path, code))
+        for confidence, count in data["finding_confidence_counts"].items():
+            if type(count) is not int or count < 0:
+                raise Refused("%s finding_confidence_counts.%s must be a non-negative integer"
+                              % (path, confidence))
+        if data["scope"] not in {"project", "user", "unknown"}:
+            raise Refused("%s scope is outside the public enum" % path)
+        if data["change_status"] != "not_applied" or data["evaluation_performed"] is not False:
+            raise Refused("%s scan action state is outside the read-only public contract" % path)
+    else:
+        enums = {
+            "state": {"improved", "unchanged", "degraded", "insufficient"},
+            "unit": {"tasks", "trials"},
+            "method_version": {"paired-tasks/0.4"},
+            "evaluator_type": {"fixed_checks", "human_checklist", "model_judge", "mixed"},
+            "change_status": {"not_applied"},
+            "source": {"locally_reported"},
+        }
+        for field, allowed_values in enums.items():
+            if data[field] not in allowed_values:
+                raise Refused("%s %s is outside the public enum" % (path, field))
+        if data["model_family"] not in PUBLIC_MODEL_FAMILIES - {None}:
+            raise Refused("%s model_family is outside the public enum" % path)
+        if data["stronger_model"] not in PUBLIC_MODEL_FAMILIES:
+            raise Refused("%s stronger_model is outside the public enum" % path)
+        if any(type(code) is not str or code not in COMPARISON_FINDING_CODES
+               for code in data["finding_codes"]):
+            raise Refused("%s finding_codes contains data outside the public enum" % path)
+        for index, workflow in enumerate(data["workflows"]):
+            if not isinstance(workflow, dict) or set(workflow) != WORKFLOW_FIELDS:
+                raise Refused("%s workflows[%d] has fields outside the public allowlist" % (path, index))
+            invocation = workflow["invocation"]
+            if not isinstance(invocation, dict) or set(invocation) != INVOCATION_FIELDS:
+                raise Refused("%s workflows[%d].invocation has fields outside the public allowlist"
+                              % (path, index))
+            for field in WORKFLOW_FIELDS - {"key", "label", "invocation"}:
+                if type(workflow[field]) is not int or workflow[field] < 0:
+                    raise Refused("%s workflows[%d].%s must be a non-negative integer"
+                                  % (path, index, field))
+            if type(workflow["key"]) is not str or type(workflow["label"]) is not str:
+                raise Refused("%s workflows[%d] key and label must be strings" % (path, index))
+            if PUBLIC_WORKFLOWS.get(workflow["key"]) != workflow["label"]:
+                raise Refused("%s workflows[%d] key/label is outside the public enum"
+                              % (path, index))
+            for field, value in invocation.items():
+                if type(value) is not int or value < 0:
+                    raise Refused("%s workflows[%d].invocation.%s must be a non-negative integer"
+                                  % (path, index, field))
     return data
 
 
@@ -248,13 +356,32 @@ def guard_no_skill_names(name: str, text: str, names: set[str]) -> None:
                           "scanned machine. Refusing to publish." % (name, skill, around))
 
 
-def run_guards(d: Path, kind: str, files: list[tuple[str, str]]) -> list[str]:
+def canonical_public_artifacts(kind: str, summary: dict[str, Any]) -> dict[str, bytes]:
+    if kind == "comparison":
+        from render_report import report_html, social_svg
+        return {
+            "public-report.html": report_html(summary).encode("utf-8"),
+            "social-card.svg": social_svg(summary).encode("utf-8"),
+        }
+    from render_scan import page
+    return {"public-scan.html": page(summary, None, local=False).encode("utf-8")}
+
+
+def run_guards(d: Path, kind: str, files: list[tuple[str, str]]) -> tuple[list[str], dict[str, bytes]]:
     """Every guard, against the files about to leave. Returns what was checked."""
     summary_name = KINDS[kind]["summary"]
-    validate_summary(d / summary_name, kind)
+    snapshot = {src: (d / src).read_bytes() for src, _ in files}
+    with tempfile.TemporaryDirectory() as tmp:
+        captured_summary = Path(tmp) / summary_name
+        captured_summary.write_bytes(snapshot[summary_name])
+        summary = validate_summary(captured_summary, kind)
+    for name, expected in canonical_public_artifacts(kind, summary).items():
+        if snapshot.get(name) != expected:
+            raise Refused("%s does not exactly match the validated public summary; re-render before publishing"
+                          % name)
     names = local_skill_names(d, kind)
     for src, _ in files:
-        text = (d / src).read_text(encoding="utf-8", errors="replace")
+        text = snapshot[src].decode("utf-8", errors="replace")
         guard_no_local_block(src, text)
         guard_no_paths(src, text)
         if names:
@@ -262,6 +389,7 @@ def run_guards(d: Path, kind: str, files: list[tuple[str, str]]) -> list[str]:
     checked = [
         "summary schema: %s validated against its declared schema_version" % summary_name,
         "allowlist: only %s" % ", ".join(s for s, _ in files),
+        "canonical bytes: public HTML and social assets match the validated summary",
         'no id="local-data" block in any published file',
         "no /Users/ or /home/ path in any published file",
     ]
@@ -271,7 +399,7 @@ def run_guards(d: Path, kind: str, files: list[tuple[str, str]]) -> list[str]:
                        else "skill names: skipped, no local artifact in the directory")
     else:
         checked.append("skill names: %d name(s) from the local artifact, none present" % len(names))
-    return checked
+    return checked, snapshot
 
 
 def slug_for(summary: Path) -> str:
@@ -279,13 +407,14 @@ def slug_for(summary: Path) -> str:
     return hashlib.sha256(summary.read_bytes()).hexdigest()[:10]
 
 
-def transfer(d: Path, files: list[tuple[str, str]], remote: str, web_root: str, slug: str) -> None:
+def transfer(snapshot: dict[str, bytes], files: list[tuple[str, str]], remote: str,
+             web_root: str, slug: str) -> None:
     dest = "%s/%s/%s" % (web_root, SHARE_PREFIX, slug)
     staged = "/tmp/brain-surgery-%s" % slug
     with tempfile.TemporaryDirectory() as tmp:
         stage = Path(tmp)
         for src, published in files:
-            (stage / published).write_bytes((d / src).read_bytes())
+            (stage / published).write_bytes(snapshot[src])
         # Staged idiom: land in /tmp as the login
         # user, then install into the web root as root. A per-slug staging
         # directory keeps two concurrent publishes from reading each other's files.
@@ -326,8 +455,8 @@ def main() -> int:
 
         kind = detect_kind(a.dir)
         files = collect(a.dir, kind)
-        checked = run_guards(a.dir, kind, files)
-        slug = slug_for(a.dir / KINDS[kind]["summary"])
+        checked, snapshot = run_guards(a.dir, kind, files)
+        slug = hashlib.sha256(snapshot[KINDS[kind]["summary"]]).hexdigest()[:10]
     except Refused as e:
         sys.stderr.write("REFUSED: %s\n" % e)
         return 1
@@ -347,7 +476,7 @@ def main() -> int:
     print("\nWould send %d file(s):" % len(files))
     for src, published in files:
         print("  %-24s -> %s/%s  (%d bytes)"
-              % (src, dest, published, (a.dir / src).stat().st_size))
+              % (src, dest, published, len(snapshot[src])))
     held = sorted(q.name for q in a.dir.iterdir()
                   if q.is_file() and q.name not in {s for s, _ in files})
     if held:
@@ -360,7 +489,7 @@ def main() -> int:
         return 0
 
     try:
-        transfer(a.dir, files, a.remote, a.web_root, slug)
+        transfer(snapshot, files, a.remote, a.web_root, slug)
     except subprocess.CalledProcessError as e:
         sys.stderr.write("Transfer failed (%s exited %d). The share may be incomplete.\n"
                          % (e.cmd[0], e.returncode))

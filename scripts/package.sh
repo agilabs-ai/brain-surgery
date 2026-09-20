@@ -23,24 +23,35 @@ STAGE="$STAGE_ROOT/brain-surgery"
 trap 'rm -rf "$STAGE_ROOT"' EXIT
 mkdir -p "$STAGE"
 
-# What a user who installs the skill actually needs at runtime. Everything else in
-# this repo is development state:
+# What a user who installs the skill actually needs at runtime. The files and
+# directories listed below ship; these other paths remain development state:
 #   eval/ results/ examples/ tests/ docs/     development and fixtures
 #   LEDGER/MORNING/STATUS/WORKPLAN.md         internal run log and plan of record
-#   README.md                                 describes the private dev repo, our
-#                                             hosts and our internal ground rules
 #   ui/landing.html                           the website, served, not installed
 #   templates/                                only a decision note that points at
 #                                             examples/generated/, which does not ship
 #   scripts/package.sh                        build tooling, not skill runtime
 INCLUDE_FILES=(
   "SKILL.md"
+  "README.md"
+  "METHOD.md"
+  "PRIVACY.md"
+  "SECURITY.md"
+  "LICENSE"
 )
 INCLUDE_DIRS=(
   "scripts"
   "references"
-  "assets"
   "adapters"
+)
+INCLUDE_ASSETS=(
+  "assets/approved-ui.css"
+  "assets/approved-cloud.js"
+  "assets/brain.svg"
+  "assets/grid-report.css"
+  "assets/charts.css"
+  "assets/cloud.css"
+  "assets/charts.js"
 )
 
 stage_file() {
@@ -51,6 +62,11 @@ stage_file() {
 
 for rel in "${INCLUDE_FILES[@]}"; do
   [ -f "$ROOT/$rel" ] || { echo "missing required file: $rel" >&2; exit 1; }
+  stage_file "$rel"
+done
+
+for rel in "${INCLUDE_ASSETS[@]}"; do
+  [ -f "$ROOT/$rel" ] || { echo "missing required asset: $rel" >&2; exit 1; }
   stage_file "$rel"
 done
 

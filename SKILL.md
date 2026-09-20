@@ -1,10 +1,10 @@
 ---
 name: brain-surgery
-description: Audit an AI coding-agent setup using the user's real recent tasks and installed skills. Measure current task success, test a bounded candidate setup in isolation, inspect whether useful skills are actually invoked, and generate a local share-ready Brain Surgery report. Never apply changes or upload report data without a separate explicit user action.
-compatibility: Local coding agent with permitted session/skill access, Python 3.10+, and a reviewed replay/evaluation adapter. Claude Code and Codex are the first integration targets; host support must be verified, not assumed.
+description: Audit an AI coding-agent setup using permitted recent sessions and installed skills. Inventory skill reach first; optionally measure task or trial performance through a reviewed paired-evaluation adapter; generate a local share-ready report. Never apply changes or upload report data without a separate explicit user action.
+compatibility: Local coding agent with permitted session/skill access and Python 3.10+. Paired evaluation additionally requires a reviewed replay adapter and enforceable sandbox; bundled host adapters are integration targets, not certification.
 metadata:
-  author: AGI Labs
-  version: "0.5-draft"
+  author: Edge
+  version: "0.6.0"
   agi-slug: "brain-surgery"
 ---
 
@@ -59,7 +59,8 @@ Parse logs locally before sending excerpts to a configured cloud model. Group a 
 
 Evaluation sessions are excluded from usage evidence, by `is_harness_session`, keyed on a working directory under a system temp root. This is not optional hygiene: before it existed, the grid harness's own agent children accounted for 13 of 22 findings on a real machine, because they load synthetic skills that live outside any scanned root and every one came back as "loaded but not found on disk". The scan was reporting its own fixtures as faults in the user's setup. The exclusion is skipped when that temp directory *is* the project being scanned, since scanning a project that lives under `/tmp` is a real thing to do.
 
-Use real task evidence to answer:
+The scan answers whether installed capability was reached in the bounded window. It does not
+measure task success. An optional paired evaluation can later answer:
 
 1. **Does this skill help when used?**
 2. **Does the agent actually reach it when needed?**
@@ -179,7 +180,9 @@ A public report recipient gets **Scan my AI**, not an install button for a priva
 
 ## 6. Surgery is a separate explicit action
 
-If the user asks to apply the tested changes:
+The repository does not provide a general-purpose multi-file surgery applier. If the user asks
+to apply tested changes, proceed only when the host already provides a reviewed application
+path that can perform every step below:
 
 1. show the exact tested patch bundle
 2. verify the original configuration fingerprint

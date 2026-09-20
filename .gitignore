@@ -13,3 +13,4 @@ eval/runs/
 
 # Rendered reports. Build output: the result JSON is the artifact worth keeping.
 out/
+WORKPLAN-*.md

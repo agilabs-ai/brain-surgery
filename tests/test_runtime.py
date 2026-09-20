@@ -3,12 +3,14 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'scripts'))
 from runtime_io import safe_relative, digest
 from inspect_setup import inventory, normalize
 from evidence import grade, verify_seal, freeze_plan
 from run_compare import compare
+import run_compare
 from render_report import summarize, render
 from brain_visual import brain_svg
 from brain_surgery import demo
@@ -139,5 +141,34 @@ class RuntimeTests(unittest.TestCase):
     def test_missing_sandbox_blocks_real_adapter(self):
         p,cfg=self.prepared();cfg['fixture_only']=False
         with self.assertRaises(ValueError):compare(p,cfg,self.root/'blocked')
+
+    def test_declared_infrastructure_error_allows_unknown_usage(self):
+        p,cfg=self.prepared();cfg.update(fixture_only=False,sandbox_reviewed=True)
+        def infrastructure(_command,_request,response,_timeout,_env):
+            response.write_text(json.dumps({
+                'protocol':'brain-surgery-adapter/0.3','model':p['model'],
+                'status':'infrastructure_error','usage':{'total_tokens':None},
+                'invocation':{'complete':False,'target_loaded':None}}))
+            return 0,''
+        with patch.object(run_compare,'invoke',side_effect=infrastructure):
+            result=compare(p,cfg,self.root/'infra')
+        self.assertEqual(result['run']['stop_reason'],'adapter_infrastructure_error')
+        self.assertEqual(result['run']['tokens_used_or_reserved'],p['budget']['tokens_per_job'])
+        ledger=json.loads((self.root/'infra/ledger.json').read_text())
+        self.assertNotIn('error_type',ledger['jobs'][0])
+
+    def test_success_response_still_requires_usage(self):
+        p,cfg=self.prepared();cfg.update(fixture_only=False,sandbox_reviewed=True)
+        def missing_usage(_command,_request,response,_timeout,_env):
+            response.write_text(json.dumps({
+                'protocol':'brain-surgery-adapter/0.3','model':p['model'],
+                'status':'ok','usage':{'total_tokens':None},
+                'invocation':{'complete':True,'target_loaded':False}}))
+            return 0,''
+        with patch.object(run_compare,'invoke',side_effect=missing_usage):
+            result=compare(p,cfg,self.root/'missing-usage')
+        self.assertEqual(result['run']['stop_reason'],'invalid_adapter_response')
+        ledger=json.loads((self.root/'missing-usage/ledger.json').read_text())
+        self.assertEqual(ledger['jobs'][0]['error_type'],'ValueError')
 
 if __name__=='__main__':unittest.main(verbosity=2)

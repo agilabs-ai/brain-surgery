@@ -12,6 +12,21 @@ replay implementation. No native CLI flags are guessed or hard-coded by this pac
 The adapter must have a real, reviewed sandbox. Setting `sandbox_reviewed: true` in the
 configuration is an operator assertion, not a security control or certification.
 
+## Included CLI bridges are compatibility scaffolds
+
+`adapters/claude_adapter.py` and `adapters/codex_adapter.py` pin the requested model,
+pass the permitted context and run instructions, use a fresh non-persistent session, and
+confine their declared working root to the copied workspace. Mock contract tests verify
+that command construction; they are not host or provider certification.
+
+Neither installed CLI exposes a hard total-token ceiling. Because this protocol requires
+that ceiling to be enforced before spending, both included bridges return
+`infrastructure_error` without launching when `limits.max_total_tokens` is present. Do not
+configure either bridge as a production comparison adapter until a reviewed provider
+integration enforces that limit. Claude's permission flags and Codex's `workspace-write`
+policy are defense-in-depth inside the CLI, not substitutes for the external reviewed
+sandbox required above.
+
 ## Adapter config
 
 ```json

@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 import pytest
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'scripts'))
-from render_scan import ORDER, PUBLIC_SCHEMA, SCHEMA, page, render, summarize
+from render_scan import BUCKET_ORDER, ORDER, PUBLIC_SCHEMA, SCHEMA, page, render, summarize
 
 OUTPUT_NAMES = {"public-scan.html", "local-scan.html", "public-scan-summary.json"}
 
@@ -66,6 +66,15 @@ def rendered(raw, out):
     s = render(raw, out)
     return s, (out / "public-scan.html").read_text(), (out / "local-scan.html").read_text(), \
         json.loads((out / "public-scan-summary.json").read_text())
+
+
+def test_scan_uses_approved_edge_identity(scan, out):
+    _, public, local, _ = rendered(scan, out)
+    for document in (public, local):
+        assert "Brain Surgery by Edge" in document
+        assert 'aria-label="Edge home"' in document
+        assert ">Edge<span" in document
+        assert "AGI Labs" not in document
 
 
 # --- schema gate ---------------------------------------------------------
@@ -194,6 +203,34 @@ def test_public_embedded_payload_is_the_summary_not_the_scan(scan, out):
     assert "most_used" not in block and "created_at" not in block
 
 
+def test_public_page_is_reproducible_from_the_allowlisted_summary(scan, out):
+    """The public renderer must not need the private scan to retain its state."""
+    s, public, _, _ = rendered(scan, out)
+    assert public == page(s, None, local=False)
+
+
+def test_public_clean_copy_never_includes_resolved_skill_names(scan, out):
+    scan["findings"] = []
+    scan["resolved_since"] = PRIVATE_NAMES[:2]
+    _, public, local, summary = rendered(scan, out)
+    assert "failed in earlier sessions and load now" in public
+    assert summary["resolved_loads_count"] == 2
+    for name in PRIVATE_NAMES[:2]:
+        assert name in local
+        assert name not in public
+        assert name not in json.dumps(summary)
+
+
+def test_scan_only_report_never_implies_tested_uplift(scan, out):
+    _, public, local, _ = rendered(scan, out)
+    for text in (public, local):
+        assert "READ-ONLY SETUP SCAN" in text
+        assert "This scan did not test a candidate or change your setup." in text
+        assert "Tested changes" not in text
+        assert "requirements met" not in text
+        assert "→" not in text
+
+
 def test_unknown_private_key_never_reaches_the_public_summary(scan, out):
     """The allowlist proof. A key the summarizer has never heard of must be
     absent from the public side by construction, not by being stripped: a strip
@@ -216,7 +253,8 @@ def test_public_summary_keys_are_exactly_the_allowlist(scan, out):
         "schema_version", "measured", "installed", "reached", "dormant", "dormant_percent",
         "load_attempts", "confirmed_loads", "failed_loads", "sessions_analyzed",
         "turns_analyzed", "window_days", "finding_counts", "evaluation_performed",
-        "change_status", "scan_complete"}
+        "finding_groups", "finding_confidence_counts", "resolved_loads_count", "scope",
+        "harness_sessions_excluded", "change_status", "scan_complete"}
 
 
 def test_public_summary_holds_counts_and_known_strings_only(scan, out):
@@ -226,10 +264,17 @@ def test_public_summary_holds_counts_and_known_strings_only(scan, out):
     assert summary["schema_version"] == PUBLIC_SCHEMA
     assert summary["change_status"] in {"not_applied", "applied", "reverted"}
     for key, value in summary.items():
-        if key in ("schema_version", "change_status", "finding_counts"):
+        if key in ("schema_version", "change_status", "finding_counts", "finding_groups",
+                   "finding_confidence_counts", "scope"):
             continue
         assert isinstance(value, (int, bool)), key
     assert all(isinstance(v, int) and k in ORDER for k, v in summary["finding_counts"].items())
+    assert summary["scope"] in {"project", "user", "unknown"}
+    assert all(k in BUCKET_ORDER and isinstance(v, int)
+               for k, v in summary["finding_confidence_counts"].items())
+    assert all(k in ORDER and set(v) == {"count", "confidence"} and isinstance(v["count"], int)
+               and v["confidence"] in {*BUCKET_ORDER, None}
+               for k, v in summary["finding_groups"].items())
 
 
 def test_finding_counts_are_counts_not_names(scan, out):
@@ -476,6 +521,29 @@ def test_a_finding_without_a_fix_renders_without_an_empty_box(scan, out):
     }]
     _, _, local, _ = rendered(scan, out)
     assert 'class="fix"' not in local
+
+
+def test_aggregate_finding_counts_every_affected_skill(scan, out):
+    scan["findings"] = [{
+        "code": "dormant", "skill": None, "confidence": "observation",
+        "title": "3 of 4 installed skills were never used", "detail": "Present and not loaded.",
+        "fix": None, "evidence": {"installed": 4, "reached": 1, "dormant": 3,
+                                      "names": ["private-a", "private-b", "private-c"]},
+    }]
+    _, public, local, summary = rendered(scan, out)
+    assert summary["finding_groups"]["dormant"]["count"] == 3
+    assert "3 skills affected" in public
+    assert '<span class="count">3</span>' in local
+    assert "private-a" not in public
+
+
+def test_incomplete_scan_never_claims_the_setup_is_clean(scan, out):
+    scan["findings"] = []
+    scan["scan_limits"]["complete"] = False
+    _, public, local, _ = rendered(scan, out)
+    for document in (public, local):
+        assert "Scan incomplete. Findings are provisional." in document
+        assert "Nothing broken in your setup." not in document
 
 
 def test_a_clean_page_does_not_contradict_its_own_error_count(scan, out):

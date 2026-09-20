@@ -37,6 +37,25 @@ import time
 from pathlib import Path
 
 PROTOCOL = 'brain-surgery-adapter/0.3'
+SKILL_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
+
+
+def unsupported_request(request: dict) -> str | None:
+    """Return a reason when the CLI cannot honestly honor the protocol request.
+
+    Claude Code exposes turn and dollar ceilings, but not the provider-token ceiling
+    carried by this protocol.  A wrapper-side timeout or post-hoc usage check is not
+    an enforcement mechanism, so a requested token ceiling must fail before launch.
+    """
+    limit = (request.get('limits') or {}).get('max_total_tokens')
+    if limit is not None:
+        return 'Claude Code CLI cannot enforce limits.max_total_tokens; no model call was made'
+    return None
+
+
+def prompt_with_context(request: dict) -> str:
+    return (f"<permitted_context>\n{request.get('context', '')}\n</permitted_context>\n\n"
+            f"<task>\n{request['prompt']}\n</task>")
 
 
 def place_candidate(workspace: Path, configuration: dict) -> str | None:
@@ -49,12 +68,20 @@ def place_candidate(workspace: Path, configuration: dict) -> str | None:
     skill = configuration.get('skill')
     if not skill:
         return None
-    name, source = skill['name'], Path(skill['source'])
+    name, source = skill['name'], Path(skill['source']).resolve()
+    if not isinstance(name, str) or not SKILL_NAME.fullmatch(name):
+        raise ValueError('candidate skill name must be one safe path component')
+    if not source.is_dir() or any(path.is_symlink() for path in source.rglob('*')):
+        raise ValueError('candidate skill source must be a directory without symlinks')
     dest = workspace / '.claude' / 'skills' / name
-    dest.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        raise ValueError('candidate skill destination already exists')
+    dest.mkdir(parents=True)
     for item in source.iterdir():
         if item.is_file():
             shutil.copy2(item, dest / item.name)
+        elif item.is_dir():
+            shutil.copytree(item, dest / item.name)
     return name
 
 
@@ -82,23 +109,30 @@ def detect_load(stream: list[dict], skill: str | None) -> bool | None:
 
 
 def run(request: dict) -> dict:
+    unsupported = unsupported_request(request)
+    if unsupported:
+        return {'protocol': PROTOCOL, 'model': request.get('model'),
+                'status': 'infrastructure_error', 'error': unsupported,
+                'usage': {'total_tokens': 0},
+                'invocation': {'complete': False, 'target_loaded': None},
+                'harness': 'claude'}
     workspace = Path(request['workspace']).resolve()
     skill = place_candidate(workspace, json.loads(request['configuration']))
     limits = request.get('limits') or {}
 
     cmd = [
-        'claude', '-p', request['prompt'],
+        'claude', '-p', prompt_with_context(request),
         '--output-format', 'stream-json', '--verbose',
         '--model', request['model'],
+        '--append-system-prompt', request.get('instructions', ''),
         '--permission-mode', 'acceptEdits',
+        '--permission-prompts', 'none',
+        '--no-session-persistence',
         '--add-dir', str(workspace),
         # Both arms load the user's real settings. The only difference is the
         # project-local skill the candidate arm carries in its workspace.
         '--setting-sources', 'user,project',
     ]
-    if limits.get('max_turns'):
-        cmd += ['--max-turns', str(limits['max_turns'])]
-
     started = time.time()
     try:
         proc = subprocess.run(cmd, cwd=str(workspace), capture_output=True, text=True,

@@ -89,11 +89,20 @@ def compare(plan: dict, config: dict, out: Path) -> dict:
                         raise ValueError('Response/model mismatch')
                     if response.get('status') not in {'ok','task_failed','infrastructure_error'}:raise ValueError('Unknown response status')
                     total=response.get('usage',{}).get('total_tokens')
-                    if type(total) is not int or total<0:raise ValueError('Missing or invalid token accounting')
-                    used+=total-reserved;entry['reported_tokens']=total
-                    if total>reserved:stop='adapter_exceeded_token_reservation'
-                    if response['status']=='infrastructure_error':invalid.append('declared_infrastructure_error');stop='adapter_infrastructure_error'
+                    if response['status']=='infrastructure_error':
+                        # A timeout/outage can make provider usage unknowable. Retain
+                        # the full reservation in that case instead of relabelling a
+                        # declared infrastructure failure as a malformed response.
+                        if total is not None and (type(total) is not int or total<0):
+                            raise ValueError('Invalid token accounting')
+                        if type(total) is int:
+                            used+=total-reserved;entry['reported_tokens']=total
+                            if total>reserved:stop='adapter_exceeded_token_reservation'
+                        invalid.append('declared_infrastructure_error');stop='adapter_infrastructure_error'
                     else:
+                        if type(total) is not int or total<0:raise ValueError('Missing or invalid token accounting')
+                        used+=total-reserved;entry['reported_tokens']=total
+                        if total>reserved:stop='adapter_exceeded_token_reservation'
                         checks=grade(task['checks'],workspace)
                         passed=response['status']=='ok' and bool(checks) and all(c['passed'] for c in checks)
                         invoked=response.get('invocation',{}).get('target_loaded')
