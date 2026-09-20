@@ -31,6 +31,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+ASSETS = Path(__file__).resolve().parent.parent / "assets"
+
 SCHEMA = "brain-surgery-scan/0.1"
 PUBLIC_SCHEMA = "brain-surgery-scan-public/0.1"
 
@@ -104,6 +106,15 @@ def clamp(text: Any, limit: int = DETAIL_CHARS) -> str:
     return html.escape(head.rstrip(" ,.;:")) + "&hellip;"
 
 
+def finding_affected_count(finding: dict[str, Any]) -> int:
+    evidence = finding.get("evidence") or {}
+    if type(evidence.get("dormant")) is int:
+        return max(0, evidence["dormant"])
+    if isinstance(evidence.get("names"), list):
+        return len({str(name) for name in evidence["names"]})
+    return 1
+
+
 def summarize(raw: dict[str, Any]) -> dict[str, Any]:
     if raw.get("schema_version") != SCHEMA:
         raise ValueError("Unsupported schema_version: %r" % raw.get("schema_version"))
@@ -123,6 +134,24 @@ def summarize(raw: dict[str, Any]) -> dict[str, Any]:
     by_code: dict[str, list[dict[str, Any]]] = {}
     for f in raw.get("findings", []):
         by_code.setdefault(f.get("code", "other"), []).append(f)
+    # Public rendering receives this small, named presentation model rather
+    # than the scan. It retains the diagnostic state (including confidence)
+    # without carrying a skill name, path, detail, fix, or an arbitrary future
+    # finding code into the shareable page.
+    public_groups = {
+        code: {
+            "count": sum(finding_affected_count(f) for f in by_code[code]),
+            "confidence": next((f.get("confidence") for f in by_code[code]
+                                if f.get("confidence") in BUCKETS), None),
+        }
+        for code in ORDER if code in by_code
+    }
+    confidence_counts = {
+        bucket: sum(1 for f in raw.get("findings", []) if f.get("confidence") == bucket)
+        for bucket in BUCKET_ORDER
+    }
+    coverage = raw.get("coverage") or {}
+    scope = coverage.get("scope")
     return {
         "schema_version": PUBLIC_SCHEMA,
         "measured": measured,
@@ -138,79 +167,50 @@ def summarize(raw: dict[str, Any]) -> dict[str, Any]:
         "window_days": int(cov.get("window_days", 0)),
         # Codes and how many skills each covers. No names: the count is the finding.
         "finding_counts": {c: len(by_code[c]) for c in ORDER if c in by_code},
+        "finding_groups": public_groups,
+        "finding_confidence_counts": confidence_counts,
+        "resolved_loads_count": len(raw.get("resolved_since") or []),
+        "scope": scope if scope in {"project", "user"} else "unknown",
+        "harness_sessions_excluded": int(coverage.get("harness_sessions_excluded") or 0),
         "evaluation_performed": bool(raw.get("evaluation_performed", False)),
         "change_status": raw.get("change_status", "not_applied"),
         "scan_complete": bool(raw.get("scan_limits", {}).get("complete", False)),
     }
 
 
-CSS = """
-:root{--paper:#FFFFFF;--ink:#050505;--line:#E5E5E5;--blue:#154CFF;--muted:#6B6B6B;--r:9px;
-  --pad:max(20px,env(safe-area-inset-left,0px))}
-*{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);
-  font:15px/1.55 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  -webkit-font-smoothing:antialiased}
-.wrap{max-width:760px;margin:0 auto;padding:0 var(--pad);padding-block:32px 64px}
-.nav{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
-  padding-bottom:20px;border-bottom:1px solid var(--line)}
-.brand{font-weight:650;letter-spacing:-.02em;color:var(--ink);text-decoration:none}
-.tag{font-size:12px;color:var(--muted)}
-h1{font-size:clamp(28px,6vw,40px);letter-spacing:-.03em;margin:36px 0 6px;text-wrap:balance}
-.sub{color:var(--muted);margin:0 0 32px}
-.hero{border:1px solid var(--line);border-radius:var(--r);padding:28px 24px;margin-bottom:28px}
-.big{font-size:clamp(40px,11vw,68px);line-height:1;letter-spacing:-.04em;font-weight:680}
-.big small{font-size:.38em;font-weight:600;color:var(--muted);letter-spacing:-.01em}
-.of{color:var(--muted);margin:10px 0 22px}
-.bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}
-.bar i{display:block;height:100%;background:var(--blue);border-radius:99px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
-  background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:28px}
-.stat{background:var(--paper);padding:16px 18px}
-.stat b{display:block;font-size:22px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.stat span{font-size:12px;color:var(--muted)}
-h2{font-size:18px;letter-spacing:-.02em;margin:32px 0 4px}
-h2 + p{margin:0 0 14px;color:var(--muted);font-size:13px}
-.group{border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:14px}
-ul{margin:0;padding-left:18px}
-li{margin:6px 0}
-li small{color:var(--muted)}
-.count{display:inline-block;background:var(--ink);color:var(--paper);border-radius:99px;
-  padding:1px 9px;font-size:12px;font-variant-numeric:tabular-nums;margin-left:6px}
-summary{cursor:pointer;color:var(--muted);font-size:13px;list-style:revert}
-details ul{margin:8px 0 0}
-.fix{margin:7px 0 2px;padding:8px 11px;background:var(--line);border-radius:6px;
-  font-size:12.5px;color:var(--ink);line-height:1.5}
-.fix code{display:block;margin-top:6px;font:12px/1.5 SFMono-Regular,ui-monospace,Menlo,monospace;
-  color:var(--muted);overflow-wrap:anywhere}
-.bucket{display:inline-block;margin-left:8px;padding:1px 9px;border-radius:99px;
-  font-size:11px;font-weight:600;letter-spacing:.01em;vertical-align:2px;
-  border:1px solid var(--line);color:var(--muted)}
-.b-confirmed{background:var(--blue);border-color:var(--blue);color:#fff}
-.b-suspected{color:var(--ink)}
-.note{border-left:2px solid var(--blue);padding:2px 0 2px 14px;color:var(--muted);font-size:13px;margin:24px 0}
-footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --paper:#0A0A0A;--ink:#F5F5F5;--line:#242424;--muted:#9A9A9A}}
-:root[data-theme="dark"]{--paper:#0A0A0A;--ink:#F5F5F5;--line:#242424;--muted:#9A9A9A}
+SCAN_CSS = """
+.scan-wrap{padding-bottom:72px}.scan-head{padding:21px 0 18px}.scan-head h1{font-size:16px;font-weight:510;letter-spacing:-.35px}.scan-head .tiny{margin-top:3px}.scan-hero{position:relative;padding:38px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}.scan-hero h2{font-size:clamp(31px,4.5vw,48px);letter-spacing:-1.7px;line-height:1.1;font-weight:545;max-width:720px;margin:12px 0 15px}.scan-hero h2 span{color:var(--blue)}.scan-hero .cloud-layer{opacity:.78}.scan-hero .foreground{position:relative;z-index:1}.scan-hero .of{max-width:630px;color:var(--muted);font-size:13px;line-height:1.7;margin:0}.scan-measure{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:32px;align-items:end;margin-top:26px}.big{font-size:92px;font-weight:550;letter-spacing:-6px;line-height:.9}.big small{font-size:.28em;font-weight:450;letter-spacing:-1px;color:var(--muted)}.bar{height:6px;background:#ececec;overflow:hidden;margin-top:22px}.bar i{display:block;height:100%;background:var(--blue)}.scan-reach{font-size:11px;color:var(--muted);line-height:1.6;margin:11px 0 0}.scan-stats{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:24px 0 0}.stat{padding:17px 18px;border-right:1px solid var(--line)}.stat:last-child{border-right:0}.stat b{display:block;font-size:27px;letter-spacing:-1px;font-weight:540}.stat span{font-size:10px;color:var(--muted)}.scan-section{padding:46px 0;border-top:1px solid var(--line)}.scan-section-head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:25px}.scan-section-head h2{font-size:27px;letter-spacing:-.8px;font-weight:550}.scan-section-head p{font-size:12px;color:var(--muted);max-width:390px}.scan-group{border-top:1px solid var(--line);padding:22px 0}.scan-group:last-child{border-bottom:1px solid var(--line)}.scan-group h2{font-size:16px;font-weight:540;letter-spacing:-.3px;margin:0}.scan-group>p{font-size:12px;line-height:1.65;color:var(--muted);margin:7px 0 14px;max-width:680px}.scan-group ul{margin:0;padding-left:18px}.scan-group li{font-size:13px;margin:7px 0}.scan-group li small{color:var(--muted)}.count{display:inline-block;background:var(--ink);color:#fff;border-radius:99px;padding:1px 8px;font:10px var(--mono);margin-left:7px;vertical-align:2px}.bucket{display:inline-block;margin-left:8px;padding:2px 7px;border-radius:4px;font:9px var(--mono);letter-spacing:.07em;text-transform:uppercase;vertical-align:2px;border:1px solid var(--line);color:var(--muted)}.b-confirmed{background:var(--blue);border-color:var(--blue);color:#fff}.b-suspected{color:var(--ink)}summary{cursor:pointer;color:var(--muted);font-size:12px}details ul{margin:8px 0 0}.fix{margin:8px 0 3px;padding:9px 11px;background:#fafafa;border:1px solid var(--line);border-radius:7px;font-size:12px;line-height:1.5}.fix code{display:block;margin-top:6px;font:11px/1.5 var(--mono);color:var(--muted);overflow-wrap:anywhere}.scan-evidence{margin-top:0}.note{border-left:2px solid var(--blue);padding:3px 0 3px 14px;color:var(--muted);font-size:12px;line-height:1.65;margin:0;max-width:760px}.footer{margin-top:45px;padding:25px 0 0;border-top:1px solid var(--line);color:#777;font-size:11px;line-height:1.6}.footer a{color:inherit}@media(max-width:720px){.scan-wrap{width:min(var(--page),calc(100% - 32px))}.nav{height:65px}.nav-links{gap:12px}.scan-hero{padding:27px 23px}.scan-measure{grid-template-columns:1fr;gap:13px}.big{font-size:72px}.scan-stats{grid-template-columns:1fr 1fr}.stat:nth-child(2){border-right:0}.stat:nth-child(-n+2){border-bottom:1px solid var(--line)}.scan-section-head{display:block}.scan-section-head p{margin-top:9px}.scan-hero .cloud-layer{opacity:.52}}
 """
 
+# The approved report shell is shared verbatim. Scan-only additions below do
+# not introduce a second visual system; they only map diagnostic data into the
+# same approved tokens and responsive layout.
+CSS = (ASSETS / "approved-ui.css").read_text() + SCAN_CSS
+CLOUD_JS = (ASSETS / "approved-cloud.js").read_text()
 
-def groups_html(raw: dict[str, Any], local: bool) -> str:
+
+def groups_html(raw: dict[str, Any] | None, s: dict[str, Any], local: bool) -> str:
+    """Render private findings from the scan or public findings from its allowlist.
+
+    The public page must be reproducible from the public summary alone. Passing
+    the original scan here would make a future copy change a privacy decision.
+    """
     by_code: dict[str, list[dict[str, Any]]] = {}
-    for f in raw.get("findings", []):
-        by_code.setdefault(f.get("code", "other"), []).append(f)
+    if raw:
+        for f in raw.get("findings", []):
+            by_code.setdefault(f.get("code", "other"), []).append(f)
     out = []
     for code in ORDER:
-        items = by_code.get(code)
-        if not items:
+        items = by_code.get(code, [])
+        public_group = (s.get("finding_groups") or {}).get(code, {})
+        if not items and not public_group:
             continue
         title, detail = GROUPS[code]
         # Count skills, not findings. One whole-setup finding carries the names of
         # every skill it covers, and badging that group "1" beside a list of 163
         # names contradicts the list directly under it.
-        affected = sum(1 if f.get("skill") else len(f.get("evidence", {}).get("names", []))
-                       for f in items)
+        affected = (sum(finding_affected_count(f) for f in items)
+                    if local else int(public_group.get("count", 0)))
         if local:
             # Names only ever reach the local page.
             rows = []
@@ -254,20 +254,21 @@ def groups_html(raw: dict[str, Any], local: bool) -> str:
                 affected, "" if affected == 1 else "s")
         # The bucket on the group, so a reader scanning headings can tell what is
         # reproducible now from what is a lead, without reading every finding.
-        bucket = next((f.get("confidence") for f in items if f.get("confidence")), None)
+        bucket = (next((f.get("confidence") for f in items if f.get("confidence")), None)
+                  if local else public_group.get("confidence"))
         chip = ''
         if bucket in BUCKETS:
             label, _ = BUCKETS[bucket]
             chip = '<span class="bucket b-%s">%s</span>' % (bucket, html.escape(label))
-        out.append('<div class="group"><h2>%s<span class="count">%d</span>%s</h2><p>%s</p>%s</div>'
+        out.append('<div class="scan-group"><h2>%s<span class="count">%d</span>%s</h2><p>%s</p>%s</div>'
                    % (html.escape(title), affected, chip, html.escape(detail), body))
     return "".join(out)
 
 
-def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
+def page(s: dict[str, Any], raw: dict[str, Any] | None, local: bool) -> str:
     reach_pct = round(100.0 * s["reached"] / s["installed"]) if s["installed"] else 0
     where = "Local scan &middot; not shared" if local else "Shared scan"
-    title = "Brain Surgery by AGI Labs &middot; %s scan" % ("local" if local else "shared")
+    title = "Brain Surgery by Edge &middot; %s scan" % ("local" if local else "shared")
     # The headline is the count, not an adjective. A person reading their own
     # number should not have to trust our word for how bad it is.
     one = lambda n, a, b: a if n == 1 else b
@@ -275,18 +276,17 @@ def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
         (s["installed"], one(s["installed"], "skill installed", "skills installed")),
         (s["reached"], "reached in this window"),
         (s["failed_loads"], one(s["failed_loads"], "load returned an error", "loads returned an error")
-         + (", since resolved" if raw.get("resolved_since") and not any(
-             f.get("code") == "load_failed" for f in raw.get("findings", [])) else "")),
+         + (", since resolved" if s.get("resolved_loads_count") and not s["finding_counts"].get("load_failed") else "")),
         (s["sessions_analyzed"], one(s["sessions_analyzed"], "session read", "sessions read")),
     ]
     stat_html = "".join('<div class="stat"><b>%s</b><span>%s</span></div>' % (f"{n:,}", html.escape(l))
                         for n, l in stats)
-    excluded = int((raw.get("coverage") or {}).get("harness_sessions_excluded") or 0)
+    excluded = int(s.get("harness_sessions_excluded") or 0)
     caveat = ("Counts cover the %s read in this scan, not your whole history. "
               "A skill with no recorded load was not reached in this window; that is not "
               "proof it is never used. Nothing was executed, uploaded, or changed."
               % plural(s["sessions_analyzed"], "session"))
-    if (raw.get("coverage") or {}).get("scope") == "project":
+    if s.get("scope") == "project":
         # 205 of 205 dormant from two sessions, with nothing on the page saying the
         # window was deliberately one project wide. That is the dormancy false
         # alarm again, wearing a different hat.
@@ -297,11 +297,11 @@ def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
                    "your setup." % plural(excluded, "session"))
     evidence = ""
     if local:
-        top = raw.get("most_used", [])[:8]
+        top = (raw or {}).get("most_used", [])[:8]
         if top:
             rows = "".join("<li>%s<small> &middot; %d load%s</small></li>" % (
                 html.escape(str(x["skill"])), x["loads"], "" if x["loads"] == 1 else "s") for x in top)
-            evidence = ('<div class="group"><h2>What your agent actually reaches</h2>'
+            evidence = ('<div class="scan-group"><h2>What your agent actually reaches</h2>'
                         '<p>The skills that carried your work in this window.</p><ul>%s</ul></div>' % rows)
     # Escaped for a <script> context, not an HTML text one. Character references
     # are not decoded inside a script element, so html.escape here would leave a
@@ -315,33 +315,38 @@ def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
     # "163 of 203 skills were never used" told a reader their setup was 80% broken
     # when most of those skills are for work they do not do. A fresh machine with
     # five cleanly installed skills produced that finding and nothing else.
-    confirmed = [f for f in raw.get("findings", []) if f.get("confidence") == "confirmed"]
-    suspected = [f for f in raw.get("findings", []) if f.get("confidence") == "suspected"]
+    confirmed_count = (sum(1 for f in (raw or {}).get("findings", []) if f.get("confidence") == "confirmed")
+                       if local else int((s.get("finding_confidence_counts") or {}).get("confirmed", 0)))
+    suspected_count = (sum(1 for f in (raw or {}).get("findings", []) if f.get("confidence") == "suspected")
+                       if local else int((s.get("finding_confidence_counts") or {}).get("suspected", 0)))
 
     if s["measured"]:
-        if confirmed:
-            headline = "%s to fix in your setup." % plural(len(confirmed), "thing")
+        if not s.get("scan_complete"):
+            headline = "Scan incomplete. Findings are provisional."
+            lead = ("The readable evidence is shown below, but missing roots or sessions mean "
+                    "this is not a clean bill of health and not a complete diagnosis.")
+            big, unit, of = confirmed_count + suspected_count, "", "found so far"
+        elif confirmed_count:
+            headline = "%s to fix in your setup." % plural(confirmed_count, "thing")
             lead = ("Each one is reproducible on your machine right now, and each has a "
                     "path you can open.")
-            big, unit, of = len(confirmed), "", "confirmed"
-        elif suspected:
+            big, unit, of = confirmed_count, "", "confirmed"
+        elif suspected_count:
             headline = "Nothing confirmed broken. %s worth checking." % plural(
-                len(suspected), "thing")
+                suspected_count, "thing")
             lead = ("These come from your past sessions, so the condition may already be "
                     "gone. Each needs one look before it is worth acting on.")
-            big, unit, of = len(suspected), "", "worth checking"
+            big, unit, of = suspected_count, "", "worth checking"
         else:
             # A clean scan is an honest result, not a failure to find something.
             headline = "Nothing broken in your setup."
-            resolved = raw.get("resolved_since") or []
-            if resolved:
+            resolved_count = int(s.get("resolved_loads_count") or 0)
+            if resolved_count:
                 # Without this the page contradicted itself: the hero said "no
                 # failed loads" while the strip beneath it counted four. They are
                 # both true, and only saying one of them reads as a mistake.
-                lead = ("Nothing to fix today. %s failed in earlier sessions and %s "
-                        "now: %s." % (plural(len(resolved), "skill"),
-                                      "loads" if len(resolved) == 1 else "load",
-                                      ", ".join(sorted(resolved))))
+                lead = ("Nothing to fix today. %s failed in earlier sessions and load now. "
+                        "The earlier errors are resolved." % plural(resolved_count, "skill"))
             else:
                 lead = ("No name collisions, no failed loads, nothing missing from disk. "
                         "That is the finding, not an absence of one.")
@@ -352,10 +357,7 @@ def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
         # Dormancy moves into the strip below, where it reads as context. As the
         # hero number it told a reader with five clean skills that 80% of their
         # setup was dormant, which is true and is not a problem.
-        hero = f"""<section class="hero"><div class="big">{big}<small>{unit}</small></div>
-<p class="of">{html.escape(lead)}</p>
-<div class="bar"><i style="width:{reach_pct}%"></i></div>
-<p class="of" style="margin:10px 0 0;font-size:13px">{s['reached']} of {s['installed']} skills reached in this window &middot; {s['confirmed_loads']} loads from {s['load_attempts']} attempts</p></section>"""
+        hero = f"""<section class="scan-hero"><div class="cloud-layer" data-cloud="right" data-intensity=".38"></div><div class="foreground"><p class="kicker">READ-ONLY SETUP SCAN</p><h2>{html.escape(headline)}</h2><p class="of">{html.escape(lead)}</p><div class="scan-measure"><div><div class="big">{big}<small>{unit}</small></div><div class="bar"><i style="width:{reach_pct}%"></i></div><p class="scan-reach">{s['reached']} of {s['installed']} skills reached in this window &middot; {s['confirmed_loads']} loads from {s['load_attempts']} attempts</p></div></div></div></section>"""
     else:
         # No dormancy headline, no bar, no percentage. Nothing was measured, and
         # a zero here would read as a finding rather than an absence.
@@ -363,25 +365,26 @@ def page(s: dict[str, Any], raw: dict[str, Any], local: bool) -> str:
         coverage_line = ("No sessions were readable in the last %s, so this scan counts what is "
                          "installed and what is misconfigured, not what gets used."
                          % plural(s["window_days"], "day"))
-        hero = ('<section class="hero"><div class="big">&hellip;</div>'
+        hero = ('<section class="scan-hero"><div class="cloud-layer" data-cloud="right" data-intensity=".38"></div><div class="foreground"><p class="kicker">READ-ONLY SETUP SCAN</p><h2>Installed setup, <span>unmeasured usage.</span></h2><div class="big">&hellip;</div>'
+                '<p class="tiny">Nothing was measured.</p>'
                 '<p class="of">No usage to report. This is not a clean bill of health and it is '
-                'not an alarm: the window held no sessions to read.</p></section>')
+                'not an alarm: the window held no sessions to read.</p></div></section>')
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
 <title>{title}</title>
 <meta name="description" content="How much of your installed agent capability your agent actually reaches.">
-<style>{CSS}</style></head><body><div class="wrap">
-<nav class="nav"><a class="brand" href="/" rel="noreferrer">agi labs</a>
-<span class="tag">{where}</span></nav>
-<h1>{html.escape(headline)}</h1>
-<p class="sub">{html.escape(coverage_line)}</p>
+<style>{CSS}</style></head><body><div class="wrap scan-wrap">
+<nav class="nav" aria-label="Report header"><a class="brand" href="/" rel="noreferrer" aria-label="Edge home"><svg class="edge-logo" viewBox="0 0 102 94" aria-hidden="true"><g fill="currentColor" transform="translate(12 12)"><path d="M1 43 42 28v27L1 70V43ZM34 17 78 0v28L47 40V23l-13 5V17Z"/></g></svg>Edge<span class="brand-divider"></span><span class="brand-product">Brain Surgery</span></a>
+<div class="nav-links"><span class="location">{where}</span></div></nav>
+<header class="scan-head"><h1>Your brain scan</h1><p class="tiny">{html.escape(coverage_line)}</p></header>
 {hero}
-<div class="stats">{stat_html}</div>
-{groups_html(raw, local)}{evidence}
+<div class="scan-stats">{stat_html}</div>
+<section class="scan-section"><div class="scan-section-head"><div><p class="kicker">WHAT THE SCAN FOUND</p><h2>Signals from your setup.</h2></div><p>Diagnostic findings, ordered by confidence. This scan did not test a candidate or change your setup.</p></div>
+{groups_html(raw, s, local)}</section>{('<section class="scan-section scan-evidence">' + evidence + '</section>') if evidence else ''}
 <p class="note">{caveat}</p>
-<footer>Brain Surgery, by AGI Labs. Nothing here was applied. {'Private until you choose to share.' if local else 'Counts only. Private work stays on the machine.'}</footer>
-</div><script id="{data_id}" type="application/json">{payload}</script></body></html>"""
+<footer class="footer"><span>Brain Surgery, by Edge.<br>Nothing here was applied. {'Private until you choose to share.' if local else 'Counts only. Private work stays on the machine.'}</span><span class="tiny">Read-only scan</span></footer>
+</div><script id="{data_id}" type="application/json">{payload}</script><script>{CLOUD_JS}</script><script>window.Clouds&&window.Clouds.mountAll();</script></body></html>"""
 
 
 def write_private(path: Path, text: str) -> None:
@@ -399,7 +402,10 @@ def render(raw: dict[str, Any], out: Path) -> dict[str, Any]:
     out.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(out, 0o700)  # mode= only applies on creation, and umask masks it.
     s = summarize(raw)
-    write_private(out / "public-scan.html", page(s, raw, local=False))
+    # Public HTML deliberately receives no raw scan. The summary is an
+    # allowlist, and rendering from it proves a later display change cannot
+    # accidentally publish skill names, paths, details, or fixes.
+    write_private(out / "public-scan.html", page(s, None, local=False))
     write_private(out / "local-scan.html", page(s, raw, local=True))
     write_private(out / "public-scan-summary.json", json.dumps(s, indent=2))
     return s

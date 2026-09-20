@@ -5,14 +5,15 @@
 1. **Landing page**. understand the promise in one viewport and download/install the skill.
 2. **Invoke Brain Surgery**. no onboarding form; the skill states its bounded scan scope and asks only for missing permissions.
 3. **Scan status in the agent**. terse progress updates in chat/terminal; no separate progress web app.
-4. **Local report opens automatically**. current vs tested task pass rate, workflow evidence, concise findings.
+4. **Local report opens automatically**. The default scan reports inventory/reach and
+   diagnostic findings. Current-versus-tested pass rates appear only after a paired evaluation.
 5. **Share**. exact public-page/social-card preview, then explicit approval to create the link or save the image.
 6. **Optional surgery**. review the tested changes, then explicitly approve application with rollback material.
 
 ## What is still infrastructure, not more product UI
 
 - A real Claude Code adapter and Codex adapter connected to the existing evaluator.
-- Hosting `/brain-surgery` and the ZIP on the AGI Labs site.
+- An approved Edge domain/host for the landing page and exact ZIP. None is configured yet.
 - A tiny report-publishing endpoint that accepts only the allowlisted public summary.
 - Surgery application with fingerprint check + backup + rollback.
 

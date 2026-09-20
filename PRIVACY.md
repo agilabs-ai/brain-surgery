@@ -7,7 +7,11 @@ Brain Surgery is local-by-default. This file says what it reads, what it keeps, 
 - A bounded window of your recent agent sessions (transcripts)
 - Your installed skills and their metadata
 
-It reads these to measure current task success and whether useful skills are actually reached. It does not read credentials, SSH keys, environment secrets, or unrelated files in your home directory.
+The default scan uses these to inventory the setup and measure whether installed skills were
+reached in the bounded window; it does not measure task quality. An optional paired evaluation
+measures task or trial performance only after a reviewed adapter and safe execution boundary
+are available. It does not intentionally read credentials, SSH keys, environment secrets, or
+unrelated files in your home directory.
 
 ## What it writes
 
@@ -16,9 +20,13 @@ It reads these to measure current task success and whether useful skills are act
 
 ## What leaves your machine
 
-Nothing to AGI Labs unless you explicitly share. Sharing uploads only the reviewed public summary: broad workflow categories and measurements. Private task inputs, skill contents, and raw logs are not included in a shared report.
+Nothing to Edge unless you explicitly share and a publishing endpoint has been configured.
+Sharing uploads only the reviewed public summary: broad workflow categories and measurements.
+Private task inputs, skill contents, and raw logs are not included in a shared report.
 
-One caveat, stated plainly: if you run the scan against a cloud model, the selected task content is sent to that model provider, the same as any normal run of your agent. That traffic goes to your configured provider, not to AGI Labs.
+One caveat, stated plainly: if you run the optional evaluation against a cloud model, selected
+task content is sent to that model provider, the same as any normal run of your agent. That
+traffic goes to your configured provider, not to Edge.
 
 ## Your controls
 

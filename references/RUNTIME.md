@@ -1,4 +1,4 @@
-# Runtime and handoff: v0.3
+# Runtime and handoff: v0.4
 
 ## Architecture decision
 
@@ -12,7 +12,8 @@ Coding agents generally consume the extracted folder; ZIP upload behavior varies
 
 React can be a developer-side authoring choice later. It should compile before shipping.
 Do not require end users to build a React app just to read their report. This version uses
-one plain HTML renderer and one shared public-summary model; don't build a second renderer.
+two schema-specific static renderers: the default scan renderer and the optional paired-
+comparison renderer. Each builds its public output from an explicit allowlist.
 Never ask the model to generate a different HTML/React application for each audit.
 
 ## Implemented and executable
@@ -23,10 +24,13 @@ Never ask the model to generate a different HTML/React application for each audi
 - `scripts/run_compare.py`: explicitly approved adapter execution, fresh copied workspaces,
   randomized arm ordering, fixed-check grading, per-job timeout, job ceilings, token
   reservation/usage accounting, ledger and partial outcomes.
-- `scripts/render_report.py`: scores from task pairs, public allowlist, local/public HTML.
+- `scripts/render_scan.py`: renders read-only inventory/reach findings; it makes no uplift claim.
+- `scripts/render_report.py`: scores task or trial pairs and renders local/public comparison HTML.
 - `scripts/brain_visual.py`: SVG brain fill computed from measured percentages.
 - `scripts/brain_surgery.py`: CLI with inspect/freeze/compare/render/demo entry points.
 - `adapters/fixture_adapter.py`: synthetic IO smoke-test backend, **not an AI backend**.
+- `adapters/claude_adapter.py` and `adapters/codex_adapter.py`: integration targets. Their
+  presence does not certify host configuration preservation, token enforcement, or sandboxing.
 - The test suite covers runtime, score, privacy, the changed-input path and fixture
   integration. It lives in the development repo under `tests/` and is not part of the
   shipped package.
@@ -39,8 +43,9 @@ Never ask the model to generate a different HTML/React application for each audi
    behavior on the machines that will ship. Fixture tests are not host certification.
 3. Connect the approved summary to the actual publishing endpoint. The HTML deliberately
    previews instead of inventing a URL. It does not read a remote endpoint by default.
-4. Apply reviewed changes through the existing agent with original-file verification and
-   rollback. The supplied UI exports a proposal; it does not perform live surgery.
+4. Connect a general application path only after it supports exact tested bundles,
+   original-file fingerprints, rollback, and conflict refusal. The current helper is narrow;
+   the report must not imply that general live surgery is available or succeeded.
 
 These are specific integration gaps. Do not represent the ZIP as a production-validated,
 universal autonomous evaluator. Do not implement a new agent platform to close them.
@@ -51,8 +56,13 @@ Run `demo` and the tests. Feed one actual prior result from the existing ledger 
 renderer. Confirm that the percentages and workflow rows match the source. Then wire the
 existing runner, using its proven restrictions. After that, connect summary publishing.
 
-The end-user workflow stays: scan → report → optional share or review. The CLI's technical
-subcommands are implementation steps, not new UI choices.
+The end-user workflow stays: scan → report → optional comparison → optional share or review.
+The CLI's technical subcommands are implementation steps, not new UI choices.
+
+The approved Edge presentation is a product UI contract, not evidence that publishing,
+adapter certification, a cross-model matrix, or a production deployment exists. Render those
+states only when the corresponding runtime evidence exists; otherwise hide or mark them
+unavailable.
 
 ## Scope and budget notes
 

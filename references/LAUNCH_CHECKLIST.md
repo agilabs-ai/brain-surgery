@@ -2,9 +2,9 @@
 
 ## Must be real before launch
 
-- [ ] Host `landing/index.html` at `agilabs.cc`.
+- [ ] Approve an Edge production domain and host, then host the production landing page there.
 - [ ] Host the exact `brain-surgery.zip` linked from the landing page.
-- [ ] Connect at least one verified host adapter (Claude Code first; Codex if ready) to the existing evaluator.
+- [ ] Connect and certify at least one host adapter against its real sandbox and request contract.
 - [ ] Make the skill open the generated local report automatically when the scan finishes.
 - [ ] Connect **Create share link** to an allowlisted-summary-only publishing endpoint.
 - [ ] If surgery is enabled at launch: fingerprint originals, show exact diff, create rollback material, then require explicit approval.

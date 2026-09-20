@@ -12,7 +12,7 @@ When a skill is published through a registry, it may carry registry-backed metad
 metadata:
   edge-id: "skill_<stable-id>"
   edge-version: "<version>"
-  edge-url: "https://agilabs.cc/skill/<slug>"
+  edge-url: "<registry canonical URL>"
 ```
 
 The `edge-*` keys are the identity fields the reader looks for; the value of `edge-url` is the registry's own canonical URL and may point at any registry, not just this one. Do not invent a registry ID before a registry record exists.

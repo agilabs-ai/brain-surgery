@@ -126,7 +126,9 @@ def summarize(raw: dict[str, Any]) -> dict[str, Any]:
     if ml is not None and (type(ml) not in (int,float) or not -100 <= ml <= 100):
         raise ValueError('model_lift must be a number of points from -100 to 100')
     model_lift = float(ml) if ml is not None else None
-    stronger_model = raw.get('stronger_model') if isinstance(raw.get('stronger_model'), str) else None
+    stronger_model = raw.get('stronger_model') if raw.get('stronger_model') in {
+        'Claude', 'GPT', 'Qwen', 'Gemini', 'Other', 'Not shared'
+    } else None
     if model_lift is not None and not stronger_model:
         raise ValueError('model_lift needs stronger_model: an unnamed model is not a comparison')
     # Paired counts. The aggregate hides whether the candidate fixed failures or
@@ -168,12 +170,7 @@ def state_copy(s: dict[str, Any]) -> tuple[str,str,str]:
     if s['state'] == 'improved':
         pts = int(round(s['delta_points'] or 0))
         unit = 'point' if abs(pts) == 1 else 'points'
-        # With condition C measured, the headline states the comparison rather
-        # than the raw gap: a number is a fact, the comparison is the finding.
-        ml = s.get('model_lift')
         sub = f'{s["after_passes"]}/{s["after_total"]} {s["unit"]} passed, against {s["before_passes"]}/{s["before_total"]} before.'
-        if ml is not None and pts > int(round(ml)):
-            return 'Your setup was worth more than a model upgrade.', sub, 'Tested · not applied'
         return f'Your setup left {pts} {unit} on the table.', sub, 'Tested · not applied'
     if s['state'] == 'unchanged':
         return 'No measurable setup win found.', 'The current setup matched the tested candidate.', 'Keep current setup'
@@ -182,52 +179,42 @@ def state_copy(s: dict[str, Any]) -> tuple[str,str,str]:
     return 'Not enough evidence to score this yet.', 'The scan found useful clues, but not enough comparable tasks.', 'Incomplete scan'
 
 def social_svg(s: dict[str, Any]) -> str:
-    headline, _, status = state_copy(s)
-    before = '&middot;' if s['before_percent'] is None else str(s['before_percent'])
-    after = '&middot;' if s['after_percent'] is None else str(s['after_percent'])
+    scored = s['before_percent'] is not None and s['after_percent'] is not None
+    before = str(s['before_percent']) if scored else ''
+    after = str(s['after_percent']) if scored else ''
     art = brain_svg(
-        100*s['before_passes']/s['before_total'] if s['before_percent'] is not None else None,
-        100*s['after_passes']/s['after_total'] if s['after_percent'] is not None else None,
+        100*s['before_passes']/s['before_total'] if scored else None,
+        100*s['after_passes']/s['after_total'] if scored else None,
         prefix='social-brain'
-    ).replace('viewBox=\"0 0 440 438\"','x=\"835\" y=\"147\" width=\"300\" height=\"299\" viewBox=\"0 0 440 438\"')
-    sample = 'ILLUSTRATIVE DESIGN EXAMPLE' if s['example'] else ''
-    trials_note = f' · {s["before_total"]}+{s["after_total"]} TRIALS' if s['unit']=='trials' else ''
-    meta = f'{s["tasks"]} TASKS{trials_note} · {s["workflow_count"]} WORKFLOWS · SAME MODEL' if s['tasks'] >= 2 else 'SCAN INCOMPLETE · MORE COMPARABLE TASKS NEEDED'
-    if s['state']=='improved':
-        pts=int(round(s['delta_points'] or 0)); unit='point' if abs(pts)==1 else 'points'
-        line1=f'Your setup left {pts} {unit}'
-        line2='on the table.'
+    ).replace('viewBox=\"0 0 440 438\"','x=\"802\" y=\"139\" width=\"325\" height=\"320\" viewBox=\"0 20 440 380\"')
+    sample = 'ILLUSTRATIVE DESIGN EXAMPLE · NOT A MEASURED SCAN' if s['example'] else ''
+    if s['state']=='improved' and s['regressed_tasks']:
+        line1, line2 = 'Higher overall.', 'Some work got worse.'
+        detail = f'+{int(round(s["delta_points"] or 0))} points overall · {s["regressed_tasks"]} regressed · Same model'
+        verdict = 'Promising, not safe to apply as-is · Tested, not applied'
+    elif s['state']=='improved':
+        line1, line2 = 'Same AI.', 'Better on this test.'
+        detail = f'+{int(round(s["delta_points"] or 0))} points · {s["tasks"]} tasks · Same model'
+        verdict = f'{s["improved_tasks"]} improved · {s["regressed_tasks"]} worsened · Tested, not applied'
     elif s['state']=='unchanged':
-        line1='No measurable setup win'
-        line2='found.'
+        line1, line2 = 'Same AI.', 'Same measured result.'
+        detail = f'0 points · {s["tasks"]} tasks · Same model'
+        verdict = 'No measurable setup win · Keep current setup'
     elif s['state']=='degraded':
-        line1='The current setup won'
-        line2='this round.'
+        line1, line2 = 'Current setup.', 'Better on this test.'
+        detail = f'{int(round(s["delta_points"] or 0))} points · {s["tasks"]} tasks · Same model'
+        verdict = f'{s["regressed_tasks"]} worsened · Keep current setup'
     else:
-        line1='Not enough evidence'
-        line2='to score this yet.'
-    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Brain Surgery by AGI Labs. {html.escape(headline)} Current {before} percent, tested {after} percent. {status}.">
-<rect width="1200" height="630" fill="#ffffff"/>
-<path d="M0 628H600" stroke="#050505" stroke-width="4"/><path d="M600 628H1200" stroke="#154CFF" stroke-width="4"/>
-<g font-family="Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">
-  <g transform="translate(57 44) scale(.42)" fill="#050505"><path d="M 0 50 A 50 50 0 0 1 100 50 L 100 66.6667 L 0 66.6667 Z"/></g>
-  <text x="110" y="72" fill="#050505" font-size="27" font-weight="600" letter-spacing="-.8">agi labs</text>
-  <text x="59" y="126" fill="#777777" font-size="15" font-weight="600" letter-spacing="2.2">BRAIN SURGERY</text>
-  <text x="58" y="196" fill="#050505" font-size="48" font-weight="620" letter-spacing="-1.9"><tspan x="58" dy="0">{html.escape(line1)}</tspan><tspan x="58" dy="54">{html.escape(line2)}</tspan></text>
-  <text x="55" y="420" fill="#050505" font-size="146" font-weight="650" letter-spacing="-8">{before}</text>
-  <text x="244" y="411" fill="#050505" font-size="54" font-weight="560">%</text>
-  <path d="M330 355h52m-18-18 19 18-19 18" fill="none" stroke="#b8b8b8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="410" y="420" fill="#154CFF" font-size="146" font-weight="650" letter-spacing="-8">{after}</text>
-  <text x="599" y="411" fill="#154CFF" font-size="54" font-weight="560">%</text>
-  <text x="59" y="457" fill="#777777" font-size="18">Current setup</text><text x="413" y="457" fill="#154CFF" font-size="18">Tested changes</text>
-  <text x="59" y="542" fill="#555555" font-size="17" font-family="SFMono-Regular,Consolas,monospace" letter-spacing=".8">{meta}</text>
-  <text x="59" y="578" fill="#888888" font-size="16">{status}</text>
-  <text x="1142" y="584" fill="#aaaaaa" font-size="11" text-anchor="end" letter-spacing="1">{sample}</text>
-</g>{art}</svg>'''
+        line1, line2 = 'Not enough evidence.', 'No comparison score yet.'
+        detail = 'SCAN INCOMPLETE · MORE COMPARABLE TASKS NEEDED'
+        verdict = 'Missing pairs are not zeros · Nothing applied'
+    score = (f'<text x="50" y="364" fill="#050505" font-size="119" font-weight="550" letter-spacing="-7">{before}<tspan font-size="46" letter-spacing="-1">%</tspan></text><path d="M300 323h52m-16-16 17 16-17 16" stroke="#aaa" stroke-width="3" fill="none"/><text x="393" y="364" fill="#154cff" font-size="119" font-weight="550" letter-spacing="-7">{after}<tspan font-size="46" letter-spacing="-1">%</tspan></text><text x="57" y="403" fill="#777" font-size="15">Current setup</text><text x="398" y="403" fill="#154cff" font-size="15">With surgery</text>' if scored else '<text x="55" y="365" fill="#777" font-size="32" letter-spacing="-.8">NOT SCORED</text>')
+    aria = f'Brain Surgery by Edge. {line1} {line2} ' + (f'Current {before} percent, tested {after} percent. ' if scored else 'No comparison score. ') + verdict
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="{html.escape(aria)}"><rect width="1200" height="630" fill="white"/><g fill="#154cff" opacity=".12"><rect x="770" y="62" width="3" height="3"/><rect x="842" y="94" width="3" height="3"/><rect x="914" y="54" width="3" height="3"/><rect x="986" y="118" width="3" height="3"/><rect x="1058" y="78" width="3" height="3"/><rect x="1130" y="142" width="3" height="3"/></g><g font-family="Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif"><g transform="translate(52 40) scale(.45)" fill="#050505"><path d="M1 43 42 28v27L1 70V43ZM34 17 78 0v28L47 40V23l-13 5V17Z"/></g><text x="100" y="67" fill="#050505" font-size="25" font-weight="700" letter-spacing="-.8">Edge</text><text x="193" y="65" fill="#777" font-size="14">Brain Surgery</text><text x="55" y="145" fill="#777" font-size="12" letter-spacing="1.6">A SHARED BRAIN SCAN</text><text x="52" y="205" fill="#050505" font-size="48" font-weight="500" letter-spacing="-2"><tspan x="52">{html.escape(line1)}</tspan><tspan x="52" dy="52">{html.escape(line2)}</tspan></text>{score}<text x="55" y="464" fill="#333" font-size="17">{html.escape(detail)}</text><text x="55" y="492" fill="#777" font-size="13">{html.escape(verdict)}</text><path d="M55 527H1145" stroke="#e5e5e5"/><text x="55" y="568" fill="#050505" font-size="22" letter-spacing="-.6">What could your AI gain?</text><text x="1145" y="567" text-anchor="end" fill="#154cff" font-size="17">getedge.cc</text><text x="55" y="610" fill="#999" font-size="10" letter-spacing="1">{sample}</text></g>{art}</svg>'''
 
 def breakdown_section(s: dict[str, Any]) -> str:
     rows = []
-    for w in s['workflows']:
+    for w in ([] if s['state'] == 'insufficient' else s['workflows']):
         n,a,b = w['before_total'],w['before'],w['after']; delta=b-a
         verdict = 'Improved in test' if delta > 0 else ('No change' if delta == 0 else 'Current setup won')
         tone = 'positive' if delta > 0 else ('neutral' if delta == 0 else 'negative')
@@ -292,60 +279,159 @@ def lift_section(s: dict[str, Any]) -> str:
             f'</div><p class="lift-note">{note} Points are held-out task pass rate.</p></section>')
 
 def report_html(s: dict[str, Any], raw: dict[str, Any] | None = None, public_source='') -> str:
-    local = raw is not None; demo=s['example']; svg=social_svg(s)
-    n=s['tasks']; headline, summary, status = state_copy(s)
-    percent=lambda k:'&middot;' if s[k] is None else f'{s[k]}<small>%</small>'
-    if VARIANT == 'b':
-        pairs_out=[('improved',s['improved_tasks']),('unchanged',s['unchanged_tasks']),('regressed',s['regressed_tasks'])]
-        findings=''.join(f'<article class="finding outcome"><div class="outcome-num">{v}</div><h3>{k}</h3></article>' for k,v in pairs_out)
+    """Render the measured comparison in the approved Edge presentation.
+
+    The approved prototype is presentation-only; this renderer deliberately
+    rebuilds that structure from the allowlisted summary instead of shipping
+    its fixture data. Private task evidence and the proposed change plan are
+    added only to the local report.
+    """
+    local = raw is not None
+    demo = s['example']
+    before = s['before_percent']
+    after = s['after_percent']
+    before_text = '·' if before is None else str(before)
+    after_text = '·' if after is None else str(after)
+    before_score = '·' if before is None else f'{before}<small>%</small>'
+    after_score = '·' if after is None else f'{after}<small>%</small>'
+    delta = int(round(s['delta_points'] or 0)) if s['delta_points'] is not None else 0
+    headline, subline, status = state_copy(s)
+    has_regressions = s['regressed_tasks'] > 0
+    if s['state'] == 'improved' and has_regressions:
+        local_hero = 'The tested setup passed more overall, but some work got worse.'
+        rate_copy = f'<span>{after_text}% passed overall,</span> up from {before_text}%.'
+        public_title = 'Higher overall.<br><span class="blue">Some work got worse.</span>'
+        public_sub = f'Aggregate pass rate rose from {before_text}% to {after_text}%,<br>but {s["regressed_tasks"]} task{"s" if s["regressed_tasks"] != 1 else ""} regressed.'
+        conclusion_title = 'Promising overall.<br>Not safe to apply as-is.'
+        conclusion_note = 'Review every regression and retest a revised bundle before considering application.'
+    elif s['state'] == 'improved':
+        local_hero = headline
+        rate_copy = f'<span>{after_text}% passed,</span> up from {before_text}%.'
+        public_title = 'Same AI.<br><span class="blue">Better on this test.</span>'
+        public_sub = f'{after_text}% of tested {html.escape(s["unit"])} passed,<br>up from {before_text}%.'
+        conclusion_title = 'The tested setup did better<br>without changing the model.'
+        conclusion_note = 'Review the tested edits with your agent. Applying the full tested bundle is unavailable in this report.'
+    elif s['state'] == 'unchanged':
+        local_hero = 'The tested setup did not change the measured result.'
+        rate_copy = f'<span>Both setups passed {after_text}%</span> of tested {html.escape(s["unit"])}.'
+        public_title = 'Same AI.<br><span class="blue">Same measured result.</span>'
+        public_sub = f'Both setups passed {after_text}% of tested {html.escape(s["unit"])}.'
+        conclusion_title = 'No measurable setup win<br>was found in this test.'
+        conclusion_note = 'Keep the current setup. A different candidate needs a separate paired test.'
+    elif s['state'] == 'degraded':
+        local_hero = 'The current setup performed better on this test.'
+        rate_copy = f'<span>The tested setup fell to {after_text}%</span> from {before_text}%.'
+        public_title = 'Current setup.<br><span class="blue">Better on this test.</span>'
+        public_sub = f'The tested setup fell from {before_text}% to {after_text}% of tested {html.escape(s["unit"])}.'
+        conclusion_title = 'Keep the current setup.'
+        conclusion_note = 'The candidate performed worse. Do not apply it.'
     else:
-        findings=''.join(
-            f'<article class="finding">'
-            f'<div class="finding-num">{finding_context(x,s) or "ACROSS ALL WORKFLOWS"}</div>'
-            f'<h3>{FINDINGS[x][0]}</h3><p>{FINDINGS[x][1]}</p></article>'
-            for x in s['finding_codes'])
-    location=icon('lock' if local else 'globe')+('Local scan · not shared' if local else ('Public preview' if demo else 'Shared scan'))
-    main_action=f'<button class="btn btn-dark" data-action="share">Share my brain scan {icon("share")}</button>' if local else f'<button class="btn btn-dark" data-action="start">Scan my AI {icon("arrow")}</button>'
-    secondary=f'<button class="text-link" data-action="surgery">Apply these changes {icon("arrow")}</button>' if local and s['state']=='improved' else '<button class="text-link" data-action="save-image">Save scan image ↗</button>'
-    paired=f'{s["improved_tasks"]} improved · {s["unchanged_tasks"]} unchanged · {s["regressed_tasks"]} regressed'
-    counts=(paired if VARIANT!='b' else f'{n} held-out tasks · same model · same evaluator') if n>=2 else 'Some inputs or valid comparisons are still missing.'
-    grade={'fixed_checks':'Fixed checks','human_checklist':'Human-reviewed checklist','model_judge':'Model-judged checklist','mixed':'Fixed checks + graded requirements'}[s['evaluator_type']]
-    method=f'''<div class="method-text"><p><strong>What the percentages mean.</strong> {s['before_passes']} of {s['before_total']} {s['unit']} passed with the current setup; {s['after_passes']} of {s['after_total']} passed with the frozen candidate. A pass means meeting that task’s pre-set requirements. Both versions used the same model and inputs.</p><p>{grade}. {'Distinct tasks, repeated trials per task, so one flipped run does not move the headline by a sixth.' if s['unit']=='trials' else 'Distinct tasks, one comparison per task.'} This is a diagnostic sample, not a universal AI capability score or a guarantee for future work. {s['invalid_pairs']} invalid pairs excluded. The result is locally reported, not independently reproduced by AGI Labs.</p><p><strong>What is unchanged.</strong> Testing happened in isolation. Live settings have not been edited. The result applies to the whole tested candidate.</p></div>'''
+        local_hero = 'Not enough comparable work to score this yet.'
+        rate_copy = '<span>No defensible before-and-after rate.</span>'
+        public_title = 'Not enough evidence.<br><span class="blue">No comparison score yet.</span>'
+        public_sub = 'More complete task pairs are needed before comparing setups.'
+        conclusion_title = 'Complete more comparable tasks<br>before making a setup decision.'
+        conclusion_note = 'Missing comparisons are not zeros. No tested change should be applied from this result.'
+    delta_meta = '<b>Not scored</b> · incomplete comparison' if s['state'] == 'insufficient' else f'<b>{delta:+d} points</b> on tested work'
+    method_score = 'Not scored · incomplete comparison' if s['state'] == 'insufficient' else f'{before_text}% → {after_text}%'
+    brain = brain_svg(
+        100*s['before_passes']/s['before_total'] if before is not None else None,
+        100*s['after_passes']/s['after_total'] if after is not None else None,
+        prefix='approved-report-brain'
+    )
+    edge = '<svg class="edge-logo" viewBox="0 0 102 94" aria-hidden="true"><g fill="currentColor" transform="translate(12 12)"><path d="M1 43 42 28v27L1 70V43ZM34 17 78 0v28L47 40V23l-13 5V17Z"/></g></svg>'
+    workflow_rows = []
+    public_workflows = []
+    for w in ([] if s['state'] == 'insufficient' else s['workflows']):
+        bp = round(100*w['before']/w['before_total']) if w['before_total'] else 0
+        ap = round(100*w['after']/w['after_total']) if w['after_total'] else 0
+        d = ap-bp
+        workflow_rows.append(f'''<div class="workflow-line"><span class="workflow-name">{html.escape(w['label'])}</span><span class="workflow-n">{w['tasks']}</span><span class="value-bar"><span class="bar-track"><i style="width:{bp}%"></i></span><b>{bp}%</b></span><span class="value-bar tested"><span class="bar-track"><i style="width:{ap}%"></i></span><b>{ap}%</b></span><span class="delta{' zero' if d == 0 else ''}">{d:+d}</span><span aria-hidden="true"></span></div>''')
+        public_workflows.append(f'<div class="public-workflow"><p class="kicker">{html.escape(w["label"])}</p><strong>{bp}% <span>→ {ap}%</span></strong><p>{w["tasks"]} tested task{"s" if w["tasks"] != 1 else ""}</p></div>')
+    result_summary = ('More complete task pairs are needed for a defensible comparison.' if s['state'] == 'insufficient'
+                      else f'{s["after_passes"]} of {s["after_total"]} {s["unit"]} passed with the tested setup.')
+    paired = f'''<section class="result-summary"><div><strong>{result_summary}</strong><p>{s['before_passes']}/{s['before_total']} → {s['after_passes']}/{s['after_total']} {s['unit']} passed</p></div><div class="result-flags"><span><b>{s['improved_tasks']}</b> improved</span><span><b>{s['unchanged_tasks']}</b> unchanged</span><span><b>{s['regressed_tasks']}</b> worsened</span></div></section>'''
+    changes = ''
+    test_evidence = ''
+    change_rows = []
     if local:
-        method += '<p class="eyebrow" style="margin-top:20px">Local evidence · excluded from sharing</p><table class="test-table"><thead><tr><th>Task</th><th>Current</th><th>Tested</th></tr></thead><tbody id="test-body"></tbody></table>'
+        evidence_rows = []
+        for pair in raw.get('pairs', []):
+            valid_pair = pair.get('valid') is True
+            if not valid_pair:
+                current = tested = 'Not scored'
+                evidence = 'Excluded: ' + str(pair.get('invalid_reason') or 'comparison incomplete')
+            elif 'trials' in pair:
+                current = f"{pair['trials']['before']['passed']}/{pair['trials']['before']['total']} trials"
+                tested = f"{pair['trials']['after']['passed']}/{pair['trials']['after']['total']} trials"
+                evidence = 'Repeated trials reported'
+            else:
+                current = 'Passed' if pair.get('before') else 'Did not pass'
+                tested = 'Passed' if pair.get('after') else 'Did not pass'
+                evidence = 'Task-level pass check'
+            if valid_pair:
+                checks = pair.get('checks') or {}
+                check_parts = []
+                for side in ('before', 'after'):
+                    rows = checks.get(side) or []
+                    if rows:
+                        check_parts.append(f"{side}: {sum(r.get('passed') is True for r in rows)}/{len(rows)} checks")
+                invocation = pair.get('invocation') or {}
+                if invocation.get('eligible') is True:
+                    before_loaded, after_loaded = invocation.get('before'), invocation.get('after')
+                    load = lambda value: 'loaded' if value is True else ('not loaded' if value is False else 'unknown')
+                    check_parts.append(f"skill: {load(before_loaded)} → {load(after_loaded)}")
+                evidence = '; '.join(check_parts) or evidence
+            evidence_rows.append(
+                f'<tr><td>{html.escape(str(pair.get("title") or pair["task_id"]))}</td>'
+                f'<td>{html.escape(WORKFLOWS.get(pair.get("workflow"), "Other work"))}</td>'
+                f'<td>{current}</td><td>{tested}</td><td>{html.escape(evidence)}</td></tr>')
+        table = (f'''<div class="table-scroll"><table class="data-table"><thead><tr><th>Task</th><th>Workflow</th><th>Current</th><th>Tested</th><th>Checks / invocation</th></tr></thead><tbody>{''.join(evidence_rows)}</tbody></table></div>'''
+                 if evidence_rows else '<p class="note">No task pairs were recorded. There is nothing to score or apply.</p>')
+        test_evidence = f'''<section class="report-section" id="report-tests"><div class="section-head"><div><p class="kicker">TEST EVIDENCE · LOCAL ONLY</p><h2>The tasks behind the result.</h2></div></div>{table}<p class="note" style="margin-top:14px">{s['invalid_pairs']} invalid pair{'s' if s['invalid_pairs'] != 1 else ''} excluded. Task names, check outcomes, invocation evidence, and exclusion reasons stay local.</p></section>'''
+        for i,c in enumerate(raw.get('plan',{}).get('changes',[]),1):
+            change_rows.append(f'''<article class="change-line"><span class="change-no">{i:02d}</span><div><div class="change-title">{html.escape(c.get('title','Proposed edit'))}</div></div><p class="change-why">{html.escape(c.get('description',''))}</p><details><summary class="text-link">View edit</summary><code class="change-path">{html.escape(c.get('patch_preview',''))}</code></details></article>''')
+        if change_rows:
+            changes=f'''<section class="report-section"><div class="section-head"><div><p class="kicker">THE SURGERY</p><h2>{len(change_rows)} edits. Same model.</h2></div></div><div class="change-list">{''.join(change_rows)}</div><p class="note" style="margin-top:14px;font-size:11px">Tested together. Provider instructions unchanged. Nothing applied.</p></section>'''
+    workflow_section = (f'''<section class="report-section"><div class="section-head"><div><p class="kicker">WORKFLOWS</p><h2>Where the difference came from.</h2></div></div><div class="workflow-head"><span>Workflow</span><span class="tasks-head">Tasks</span><span>Current</span><span>Tested</span><span class="right">Change</span><span></span></div>{''.join(workflow_rows)}<div class="workflow-end"><p>Changes shown in percentage points. Unchanged and worsened tasks are included.</p></div></section>'''
+                        if s['state'] != 'insufficient' else
+                        '<section class="report-section"><div class="section-head"><div><p class="kicker">WORKFLOWS</p><h2>Not scored yet.</h2></div></div><p class="note">Workflow percentages are withheld until at least two comparable task pairs are complete.</p></section>')
+    method=f'''<section class="report-section" id="report-method"><div class="section-head"><div><p class="kicker">HOW WE TESTED</p><h2>Same task. Same model.<br>With and without the surgery.</h2></div></div><div class="method-figure"><div class="method-input">Your task + files</div><div class="method-fork"></div><div class="method-arms"><div class="method-arm"><div class="kicker">Without the surgery</div><strong>Current setup</strong><small>Existing skills and instructions</small></div><div class="method-arm tested"><div class="kicker blue">With the surgery</div><strong class="blue">Proposed setup</strong><small>With targeted edits</small></div></div><div class="method-join"></div><div class="method-check">Same success checklist</div><div class="mono blue" style="font-size:15px;margin-top:13px">{method_score}</div></div><p class="method-caption">Same task, inputs, model, and checks. Only the setup changes.</p><p class="method-caption">The tested setup has not been applied.</p></section>'''
+    nav=f'''<div class="wrap"><nav class="nav" aria-label="Main navigation"><a class="brand" href="https://getedge.cc" rel="noreferrer">{edge}Edge<span class="brand-divider"></span><span class="brand-product">Brain Surgery</span></a><div class="nav-links"><span class="location tiny">{'Private report' if local else 'Shared brain scan'}</span>{'<button class="text-link" data-action="export-report">Export report</button>' if local else ''}</div></nav></div>'''
+    if local:
+        primary_action = ('<button class="btn btn-dark" data-action="surgery">Review tested changes →</button>'
+                          if change_rows and s['state'] == 'improved'
+                          else '<a class="btn btn-dark" href="#report-method">Review the evidence →</a>')
+        body=f'''{nav}<main class="wrap animate-in"><div class="report-head"><div><h1>Your brain scan</h1><p class="tiny">{s['tasks']} selected tasks · {html.escape(s['model_family'])}{' · Illustrative design example' if demo else ''}</p></div><span class="status" data-application-status>{status}</span></div><section class="report-hero"><div class="cloud-layer" data-cloud="right" data-intensity="0.39" aria-hidden="true"></div><div class="foreground"><div class="kicker"><span class="dot"></span> YOUR BRAIN SCAN</div><h2>{html.escape(local_hero)}<br>{rate_copy}</h2><div class="hero-measure"><div><div class="report-numbers"><div><div class="report-number">{before_score}</div><div class="number-label">Current setup</div></div><div class="report-arrow">→</div><div><div class="report-number blue">{after_score}</div><div class="number-label">With surgery</div></div></div><p class="score-explainer">{html.escape(subline)}</p></div><div class="brain-wrap">{brain}</div></div><div class="hero-meta"><span>{delta_meta}</span><span><b>Same model</b> and inputs</span><span><b>{s['tasks']} tasks</b> compared</span></div></div></section>{paired}<div class="report-actions">{primary_action}<a class="btn btn-outline" href="#report-tests">View tests</a><button class="btn btn-outline" data-action="share">Export public preview</button><span class="note">Your live setup is unchanged.</span></div>{workflow_section}{test_evidence}{changes}{method}<section class="report-conclusion"><span class="conclusion-mark">+</span><h2>{conclusion_title}</h2><p>{conclusion_note}</p></section></main>'''
     else:
-        rows=''.join(f'<tr><td>{x["label"]}</td><td>{x["before"]}/{x["before_total"]}</td><td>{x["after"]}/{x["after_total"]}</td></tr>' for x in s['workflows'])
-        method += f'<table class="test-table"><thead><tr><th>Workflow</th><th>Current</th><th>Tested</th></tr></thead><tbody>{rows}</tbody></table><p class="field-hint">Only broad categories and measurements are shared. Private task inputs, skill contents, and logs are not included.</p>'
-    dialogs=modal('evidence-dialog','The numbers, explained.','Measured on the tested tasks. Not a claim about maximum AI potential.',method)
-    dialogs+=modal('start-dialog','Scan your AI.','Start inside your coding agent, not in a new app.',f'''<div class="method-text"><p>Use the Brain Surgery skill with your existing setup. It inspects permitted recent work, tests a bounded candidate, then opens this report.</p></div><div class="plan-code">Run Brain Surgery. Scan my approved recent tasks and installed skills. Test changes in isolation. Do not apply or upload anything.</div><div class="modal-actions"><button class="btn btn-dark" data-action="copy-start">Copy scan request {icon('arrow')}</button></div>''')
-    if local:
-        share=f'''<div class="card-frame"><img data-social alt="Exact Brain Surgery social card preview."/></div><div class="preview-note"><span>This is exactly what people will see.</span><button class="text-link" data-action="public-preview">Preview page ↗</button></div><p class="privacy-line">{icon('lock')}<span>Only this summary leaves your device. No chats, files, private skill names, prompts, or outputs.</span></p><div class="modal-actions"><button class="btn btn-outline" data-action="save-image">Save image</button><button class="btn btn-dark" data-action="publish-preview">Create share link {icon('arrow')}</button></div><p class="modal-fine">{'Prototype: publishing is not connected.' if demo else 'Publishing must use the approved AGI Labs report service.'}</p>'''
-        dialogs+=modal('share-dialog','Share the scan. Not the work.','No account. No profile. No extra setup.',share)
-        published=f'''<div class="published-panel"><h3>Public view ready.</h3><p>This prototype has not uploaded anything or created a hosted URL.</p></div><div class="modal-actions"><button class="btn btn-dark" data-action="public-preview">Open public preview {icon('arrow')}</button><button class="btn btn-outline" data-action="save-image">Save image</button></div><div class="caption" id="share-caption"></div><div class="preview-note"><button class="text-link" data-action="copy-caption">Copy caption</button><button class="text-link" data-action="export-public">Export public HTML ↗</button></div><details class="disclosure"><summary>Inspect what would be shared</summary><div class="inside">Only the allowlisted summary is required to host a report.<br><button class="text-link" data-action="export-summary">Export summary JSON ↗</button></div></details>'''
-        dialogs+=modal('published-dialog','Ready to share.','Same report. Private work stays local.',published)
-        items=''.join(f'<div class="plan-item"><strong>{html.escape(p["title"])}</strong><p>{html.escape(p["description"])}</p><div class="plan-code">{html.escape(p["patch_preview"])}</div></div>' for p in raw.get('plan',{}).get('changes',[]))
-        body=f'''<div class="method-text"><p>The scan tested these changes together. Your live setup is unchanged. Review the diff with your agent before applying it.</p></div><div class="plan">{items}</div><div class="modal-actions"><button class="btn btn-dark" data-action="export-plan">Export change plan {icon('arrow')}</button></div><p class="modal-fine">Exporting does not apply anything. The runner must verify the original configuration and create rollback material before writing.</p>'''
-        dialogs+=modal('surgery-dialog','Apply these changes.','Tested together. Nothing applied yet.',body)
-    badge='<div class="demo">DESIGN PREVIEW · ILLUSTRATIVE RESULTS · NO AUDIT OR UPLOAD</div>' if demo else ''
-    js=(ASSETS/'report.js').read_text(); css=(ASSETS/'report.css').read_text()
-    brain=brain_svg(100*s['before_passes']/s['before_total'] if s['before_percent'] is not None else None,100*s['after_passes']/s['after_total'] if s['after_percent'] is not None else None,prefix='report-brain')
-    before_css=s['before_percent'] if s['before_percent'] is not None else 0
-    after_css=s['after_percent'] if s['after_percent'] is not None else 0
-    local_payload={k:raw[k] for k in ('pairs','plan') if k in raw} if raw else None
-    source_script=f'<script id="public-source" type="text/plain">{b64(public_source)}</script>' if local else ''
-    local_script=f'<script id="local-data" type="application/json">{safejson(local_payload)}</script>' if local else ''
-    metadata=f'<meta property="og:type" content="website"><meta property="og:title" content="Brain Surgery by AGI Labs &middot; {html.escape(headline)}"><meta property="og:description" content="{n} tested tasks. Current versus tested setup. Tested, not applied.{" Design example." if demo else ""}"><meta property="og:image" content="social-card.svg"><meta name="twitter:card" content="summary_large_image">' if not local else ''
-    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Brain Surgery by AGI Labs &middot; {'local scan' if local else 'shared scan'}</title><meta name="description" content="Measure which skills actually improve your work, and whether your agent reaches them.">{metadata}<style>{css}</style></head><body>{badge}<div class="wrap"><nav class="nav" aria-label="Report header"><a class="brand" href="/" aria-label="AGI Labs home" rel="noreferrer">{MARK}agi labs</a><div class="nav-right"><span class="location">{location}</span>{'<button class="nav-share" data-action="share">'+icon('share')+'Share scan</button>' if local else ''}</div></nav><main><header class="head"><span class="status">{status}</span></header><section class="hero" style="--before:{before_css}%;--after:{after_css}%" aria-label="Test pass rate comparison"><h2>{headline}</h2><div class="score-row"><div><div class="score score-before">{percent('before_percent')}</div><div class="score-label">Current setup<br><b>{s['before_passes']}/{s['before_total']} {s['unit']}</b></div></div><div class="score-arrow" aria-hidden="true">→</div><div><div class="score score-after">{percent('after_percent')}</div><div class="score-label">Tested changes<br><b>{s['after_passes']}/{s['after_total']} {s['unit']}</b></div></div></div><div class="hero-art">{brain}</div><div class="hero-bottom"><strong>{n} held-out tasks · {s['skills_inspected']} skills inspected · same model</strong></div></section><section class="summary"><div><strong>{paired}</strong></div><button class="text-link" data-action="evidence">{'View tests' if local else 'About these numbers'} {icon('arrow')}</button></section>{lift_section(s)}<section class="actions"><div class="action-left">{main_action}<p class="action-note">{'Share first. Surgery can wait.' if local else 'Run the same audit on your own work.'}</p></div>{secondary}</section>{breakdown_section(s)}<section class="findings" aria-label="Scan findings">{findings}</section></main><footer class="footer"><span>Brain Surgery, by <a class="footer-link" href="https://agilabs.cc" target="_blank" rel="noreferrer">AGI Labs</a>.<br>{'Private until you choose to share.' if local else 'Shared measurements. Private work stays private.'}</span><button class="text-link" data-action="evidence">How the test works ↗</button></footer></div>{dialogs}<div id="toast" class="toast" role="status" aria-live="polite"></div><script id="summary-data" type="application/json">{safejson(s)}</script>{local_script}<script id="social-source" type="text/plain">{b64(svg)}</script>{source_script}<script>{js}</script></body></html>'''
+        body=f'''{nav}<main class="small-wrap animate-in"><section class="public-hero"><div class="cloud-layer" data-cloud="sides" data-intensity="0.52" aria-hidden="true"></div><div class="foreground"><div class="case-person" style="justify-content:center"><span class="avatar fd">AI</span><span class="kicker">A SHARED BRAIN SCAN</span></div><h1>{public_title}</h1><p class="public-sub">{public_sub}</p><div class="public-graphic"><div><div class="stat-big">{before_score}</div><div class="stat-label">Current</div></div><div>{brain}</div><div><div class="stat-big blue">{after_score}</div><div class="stat-label">With surgery</div></div></div><div class="public-meta">{s['tasks']} personal tasks · Same model · {s['workflow_count']} workflows<br>{s['improved_tasks']} improved · {s['unchanged_tasks']} unchanged · {s['regressed_tasks']} worsened · Tested, not applied</div>{'<div style="margin-top:14px"><span class="sample-pill">Illustrative design example</span></div>' if demo else ''}</div></section><section class="public-convert"><h2>What could your AI gain?</h2><p class="note">Run the same private, paired test on your own work.</p></section><section class="section"><div class="section-head"><div><p class="kicker">INSIDE THE RESULT</p><h2>Where the difference came from.</h2></div></div><div class="public-summary">{''.join(public_workflows)}</div><p class="note" style="margin-top:22px;font-size:11px">Unchanged and worsened tasks included. Prompts, outputs, skill names, paths, and edits stay private.</p></section>{method}<footer class="footer"><span>Brain Surgery, by Edge.</span><div><a href="https://github.com/agilabs-ai/brain-surgery" target="_blank" rel="noreferrer">Source ↗</a></div></footer></main>'''
+    css=(ASSETS/'approved-ui.css').read_text() + '''
+@media(max-width:640px){.report-actions{flex-wrap:wrap}.report-actions .btn{flex:1 1 calc(50% - 8px)}.report-actions>.note{flex-basis:100%}}
+'''
+    cloud=(ASSETS/'approved-cloud.js').read_text()
+    private_payload={k:raw[k] for k in ('pairs','plan') if k in raw} if local else None
+    public_blob=b64(public_source) if local else ''
+    scripts=f'''<script id="summary-data" type="application/json">{safejson(s)}</script>{f'<script id="local-data" type="application/json">{safejson(private_payload)}</script><script id="public-source" type="text/plain">{public_blob}</script>' if local else ''}<script>{cloud}</script><script>window.Clouds?.mountAll?.();function save(value,name){{const b=new Blob([value],{{type:'text/html'}}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}}function decodedPublic(){{return Uint8Array.from(atob(document.querySelector('#public-source').textContent),c=>c.charCodeAt(0))}}document.addEventListener('click',e=>{{if(e.target.closest('[data-action="export-report"]'))save(document.documentElement.outerHTML,'brain-surgery-private-report.html');if(e.target.closest('[data-action="share"]'))save(decodedPublic(),'brain-surgery-public-preview.html');if(e.target.closest('[data-action="surgery"]'))document.querySelector('.change-list')?.scrollIntoView({{behavior:'smooth'}});}});</script>'''
+    metadata='' if local else f'<meta property="og:type" content="website"><meta property="og:title" content="Brain Surgery by Edge · {html.escape(headline)}"><meta property="og:description" content="{s["tasks"]} tested tasks. Current versus tested setup. Tested, not applied."><meta property="og:image" content="social-card.svg"><meta name="twitter:card" content="summary_large_image">'
+    badge='<div class="preview-ribbon">ILLUSTRATIVE DESIGN EXAMPLE · NO AUDIT OR UPLOAD</div>' if demo else ''
+    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Brain Surgery · Edge</title>{metadata}<style>{css}</style></head><body>{badge}{body}{scripts}</body></html>'''
+
+def write_private(path: Path, text: str) -> None:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.write(fd, text.encode('utf-8'))
+    finally:
+        os.close(fd)
+    os.chmod(path, 0o600)
+
 
 def render(raw: dict[str,Any], out: Path) -> dict[str,Any]:
-    out.mkdir(parents=True,exist_ok=True,mode=0o700); s=summarize(raw)
+    out.mkdir(parents=True,exist_ok=True,mode=0o700); os.chmod(out,0o700); s=summarize(raw)
     public=report_html(s)
-    (out/'public-report.html').write_text(public)
-    (out/'local-report.html').write_text(report_html(s,raw,public))
-    (out/'social-card.svg').write_text(social_svg(s))
-    (out/'public-summary.json').write_text(json.dumps(s,indent=2))
-    for name in ('public-report.html','local-report.html','social-card.svg','public-summary.json'):
-        os.chmod(out/name,0o600)
+    write_private(out/'public-report.html', public)
+    write_private(out/'local-report.html', report_html(s,raw,public))
+    write_private(out/'social-card.svg', social_svg(s))
+    write_private(out/'public-summary.json', json.dumps(s,indent=2))
     return s
 
 def main() -> None:

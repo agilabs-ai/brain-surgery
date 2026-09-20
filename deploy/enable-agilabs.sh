@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# LEGACY PREVIEW CONFIG — DISABLED.
+#
+# This targeted the former agilabs.cc preview. Brain Surgery now uses the approved
+# Edge presentation, but no Edge production domain or host has been authorized.
+# Keep this historical setup inert until the destination decision is explicit.
+#
 # Turn on the gated agilabs.cc preview. One command, run on Hetzner as a user
 # with sudo, after agilabs.cc's A record points at this host.
 #
@@ -12,6 +18,9 @@
 # command argument, a log, a file or the shell history: read -s holds it in the
 # shell and htpasswd -i takes it on stdin.
 set -euo pipefail
+
+echo "Disabled: agilabs.cc is a legacy preview target; no Edge destination is approved." >&2
+exit 2
 
 DOMAIN=agilabs.cc
 WEBROOT=/var/www/certbot
