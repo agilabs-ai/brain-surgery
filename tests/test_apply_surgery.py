@@ -118,7 +118,11 @@ def run(bed, findings, *args, expect=None):
     path = bed['root'] / 'findings.json'
     path.write_text(json.dumps(findings), encoding='utf-8')
     cmd = [sys.executable, str(SCRIPT), '--input', str(path), '--target', str(bed['target']),
-           '--skill-root', str(bed['roots']), '--project', str(bed['root'])] + list(args)
+           '--skill-root', str(bed['roots']), '--project', str(bed['root']),
+           # The synthetic fixture calls its machine owner Federico. Declare that
+           # identity instead of accidentally inheriting the developer account's
+           # login name; clean CI runners are intentionally named something else.
+           '--owner-name', 'Federico'] + list(args)
     p = subprocess.run(cmd, capture_output=True, text=True)
     if expect is not None:
         assert p.returncode == expect, "exit %d, wanted %d\n%s\n%s" % (
