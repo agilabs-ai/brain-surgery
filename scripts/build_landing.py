@@ -33,14 +33,43 @@ def build(source: str) -> str:
     )
     fragment = templates["landing"]
 
+    mark = ('<svg class="edge-logo" viewBox="0 0 100 66.6667" aria-hidden="true">'
+            '<path d="M 0 50 A 50 50 0 0 1 100 50 L 100 66.6667 L 0 66.6667 Z" '
+            'fill="currentColor"/></svg>')
+    fragment = re.sub(r'<svg class="edge-logo".*?</svg>Edge', mark + 'agi labs', fragment)
+    fragment = fragment.replace('getedge.cc', 'github.com/agilabs-ai')
+    fragment = fragment.replace('Brain Surgery, by Edge.', 'Brain Surgery, by AGI Labs.')
+
     # The named synthetic fixture becomes an unmistakable, non-personal example.
     fragment = fragment.replace("Federico’s", "Example").replace("FEDERICO’S", "EXAMPLE")
     fragment = fragment.replace("Federico De Ponte", "Example user")
     fragment = fragment.replace("Building Edge", "Illustrative results")
+    fragment = fragment.replace("Building AGI Labs", "Illustrative results")
     fragment = fragment.replace('<span class="avatar fd">FD</span>', '<span class="avatar fd">EX</span>')
     fragment = fragment.replace('id="federico"', 'id="example"')
     fragment = fragment.replace('href="#public" data-route="public"', 'href="#example"')
     fragment = fragment.replace('href="#landing" data-route="landing"', 'href="/"')
+    fragment = fragment.replace(
+        'href="#example">View Example report',
+        'href="/report.html">View Example report',
+    )
+
+    # Keep the landing card exactly aligned with examples/demo-result.json, which
+    # is the source for the linked public report (2/6 -> 5/6 passing tasks).
+    aligned_metrics = {
+        '+25 <small>pts</small>': '+50 <small>pts</small>',
+        '7 points above average': '32 points above average',
+        'current 60 percent, tested 85 percent': 'current 33 percent, tested 83 percent',
+        'data-percent="60.00000" data-side="current" x="20" y="179.200" width="195" height="202.800"':
+            'data-percent="33.33333" data-side="current" x="20" y="269.333" width="195" height="112.667"',
+        'data-percent="85.00000" data-side="tested" x="20" y="94.700" width="195" height="287.300"':
+            'data-percent="83.33333" data-side="tested" x="20" y="100.333" width="195" height="281.667"',
+        '<div class="stat-big">60<small>%</small>': '<div class="stat-big">33<small>%</small>',
+        '<div class="stat-big blue">85<small>%</small>': '<div class="stat-big blue">83<small>%</small>',
+        '4 tasks · Same model · 3 targeted changes': '6 tasks · Same model · 2 targeted changes',
+    }
+    for old, new in aligned_metrics.items():
+        fragment = fragment.replace(old, new)
 
     # Keep the approved labels as ordinary in-page links, not dead prototype
     # controls that appear to scan, apply, publish, or reveal evidence.
@@ -79,8 +108,8 @@ def build(source: str) -> str:
         '<p class="note">One prompt. Your agent. Your work.</p><p style="margin-top:14px"><a class="text-link under" href="/brain-surgery.zip" download>Download brain-surgery.zip</a></p>',
     )
     fragment = fragment.replace(
-        '<span>Brain Surgery, by Edge.</span>',
-        '<span id="privacy-note">Brain Surgery, by Edge. Local-first; nothing is uploaded by this page.</span>',
+        '<span>Brain Surgery, by AGI Labs.</span>',
+        '<span id="privacy-note">Brain Surgery, by AGI Labs. Local-first; nothing is uploaded by this page.</span>',
     )
 
     if "data-action=" in fragment or "data-route=" in fragment:
@@ -91,7 +120,10 @@ def build(source: str) -> str:
 <html lang="en" data-theme="light"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light"><meta name="referrer" content="no-referrer">
-<title>Brain Surgery by Edge</title>
+<title>Brain Surgery by AGI Labs</title>
+<link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/favicon-32x32.png">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
 <meta name="description" content="Find what holds your AI back, then test targeted fixes on your work.">
 <style>{css}</style></head><body>
 <div class="preview-ribbon" role="note">DESIGN PREVIEW · ILLUSTRATIVE EXAMPLE · SAMPLE RESULTS · NO SCAN RUNS ON THIS PAGE</div>

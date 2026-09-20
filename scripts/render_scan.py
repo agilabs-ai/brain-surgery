@@ -268,7 +268,7 @@ def groups_html(raw: dict[str, Any] | None, s: dict[str, Any], local: bool) -> s
 def page(s: dict[str, Any], raw: dict[str, Any] | None, local: bool) -> str:
     reach_pct = round(100.0 * s["reached"] / s["installed"]) if s["installed"] else 0
     where = "Local scan &middot; not shared" if local else "Shared scan"
-    title = "Brain Surgery by Edge &middot; %s scan" % ("local" if local else "shared")
+    title = "Brain Surgery by AGI Labs &middot; %s scan" % ("local" if local else "shared")
     # The headline is the count, not an adjective. A person reading their own
     # number should not have to trust our word for how bad it is.
     one = lambda n, a, b: a if n == 1 else b
@@ -375,7 +375,7 @@ def page(s: dict[str, Any], raw: dict[str, Any] | None, local: bool) -> str:
 <title>{title}</title>
 <meta name="description" content="How much of your installed agent capability your agent actually reaches.">
 <style>{CSS}</style></head><body><div class="wrap scan-wrap">
-<nav class="nav" aria-label="Report header"><a class="brand" href="/" rel="noreferrer" aria-label="Edge home"><svg class="edge-logo" viewBox="0 0 102 94" aria-hidden="true"><g fill="currentColor" transform="translate(12 12)"><path d="M1 43 42 28v27L1 70V43ZM34 17 78 0v28L47 40V23l-13 5V17Z"/></g></svg>Edge<span class="brand-divider"></span><span class="brand-product">Brain Surgery</span></a>
+<nav class="nav" aria-label="Report header"><a class="brand" href="https://github.com/agilabs-ai" rel="noreferrer" aria-label="AGI Labs home"><svg class="edge-logo" viewBox="0 0 100 66.6667" aria-hidden="true"><path d="M 0 50 A 50 50 0 0 1 100 50 L 100 66.6667 L 0 66.6667 Z" fill="currentColor"/></svg>agi labs<span class="brand-divider"></span><span class="brand-product">Brain Surgery</span></a>
 <div class="nav-links"><span class="location">{where}</span></div></nav>
 <header class="scan-head"><h1>Your brain scan</h1><p class="tiny">{html.escape(coverage_line)}</p></header>
 {hero}
@@ -383,7 +383,7 @@ def page(s: dict[str, Any], raw: dict[str, Any] | None, local: bool) -> str:
 <section class="scan-section"><div class="scan-section-head"><div><p class="kicker">WHAT THE SCAN FOUND</p><h2>Signals from your setup.</h2></div><p>Diagnostic findings, ordered by confidence. This scan did not test a candidate or change your setup.</p></div>
 {groups_html(raw, s, local)}</section>{('<section class="scan-section scan-evidence">' + evidence + '</section>') if evidence else ''}
 <p class="note">{caveat}</p>
-<footer class="footer"><span>Brain Surgery, by Edge.<br>Nothing here was applied. {'Private until you choose to share.' if local else 'Counts only. Private work stays on the machine.'}</span><span class="tiny">Read-only scan</span></footer>
+<footer class="footer"><span>Brain Surgery, by AGI Labs.<br>Nothing here was applied. {'Private until you choose to share.' if local else 'Counts only. Private work stays on the machine.'}</span><span class="tiny">Read-only scan</span></footer>
 </div><script id="{data_id}" type="application/json">{payload}</script><script>{CLOUD_JS}</script><script>window.Clouds&&window.Clouds.mountAll();</script></body></html>"""
 
 

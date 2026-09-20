@@ -3,7 +3,7 @@ name: brain-surgery
 description: Audit an AI coding-agent setup using permitted recent sessions and installed skills. Inventory skill reach first; optionally measure task or trial performance through a reviewed paired-evaluation adapter; generate a local share-ready report. Never apply changes or upload report data without a separate explicit user action.
 compatibility: Local coding agent with permitted session/skill access and Python 3.10+. Paired evaluation additionally requires a reviewed replay adapter and enforceable sandbox; bundled host adapters are integration targets, not certification.
 metadata:
-  author: Edge
+  author: AGI Labs
   version: "0.6.0"
   agi-slug: "brain-surgery"
 ---

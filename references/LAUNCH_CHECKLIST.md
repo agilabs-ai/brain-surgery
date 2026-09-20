@@ -2,7 +2,7 @@
 
 ## Must be real before launch
 
-- [ ] Approve an Edge production domain and host, then host the production landing page there.
+- [ ] Approve an AGI Labs production domain and host, then host the production landing page there.
 - [ ] Host the exact `brain-surgery.zip` linked from the landing page.
 - [ ] Connect and certify at least one host adapter against its real sandbox and request contract.
 - [ ] Make the skill open the generated local report automatically when the scan finishes.

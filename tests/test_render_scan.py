@@ -68,13 +68,13 @@ def rendered(raw, out):
         json.loads((out / "public-scan-summary.json").read_text())
 
 
-def test_scan_uses_approved_edge_identity(scan, out):
+def test_scan_uses_approved_agi_labs_identity(scan, out):
     _, public, local, _ = rendered(scan, out)
     for document in (public, local):
-        assert "Brain Surgery by Edge" in document
-        assert 'aria-label="Edge home"' in document
-        assert ">Edge<span" in document
-        assert "AGI Labs" not in document
+        assert "Brain Surgery by AGI Labs" in document
+        assert 'aria-label="AGI Labs home"' in document
+        assert ">agi labs<span" in document
+        assert "getedge.cc" not in document
 
 
 # --- schema gate ---------------------------------------------------------
