@@ -64,6 +64,41 @@ def side_totals(pairs: list[dict[str, Any]], side: str) -> tuple[int,int]:
     return (sum(p['trials'][side]['passed'] for p in pairs),
             sum(p['trials'][side]['total'] for p in pairs))
 
+def summarize_model_comparison(raw: dict[str, Any], tasks: int) -> dict[str, Any] | None:
+    grid = raw.get('model_comparison')
+    if grid is None:
+        return None
+    if not isinstance(grid, dict) or grid.get('illustrative') is not True or raw.get('example') is not True:
+        raise ValueError('model_comparison is supported only for an explicitly illustrative example')
+    total = finite_int(grid.get('tasks'), 'model_comparison.tasks', 1, 1000)
+    if total != tasks:
+        return None
+    pairs = [p for p in raw.get('pairs', []) if p.get('valid') is True]
+    if len(pairs) != total:
+        return None
+    result = {'illustrative': True, 'tasks': total}
+    for key in ('current_model', 'comparison_model'):
+        row = grid.get(key)
+        if not isinstance(row, dict):
+            raise ValueError(f'model_comparison.{key} must be an object')
+        if key == 'current_model':
+            current = sum(p['before'] for p in pairs)
+            tested = sum(p['after'] for p in pairs)
+        else:
+            if any(type(p.get('comparison_current')) is not bool or type(p.get('comparison_tested')) is not bool for p in pairs):
+                raise ValueError('every illustrative pair needs comparison_current/comparison_tested booleans')
+            current = sum(p['comparison_current'] for p in pairs)
+            tested = sum(p['comparison_tested'] for p in pairs)
+        result[key] = {
+            'label': str(row.get('label') or key.replace('_', ' ').title()),
+            'detail': str(row.get('detail') or 'Illustrative configuration'),
+            'current_passed': current,
+            'tested_passed': tested,
+            'current_percent': math.floor(100 * current / total + .5),
+            'tested_percent': math.floor(100 * tested / total + .5),
+        }
+    return result
+
 def summarize(raw: dict[str, Any]) -> dict[str, Any]:
     if raw.get('schema_version') not in {'brain-surgery/0.2','brain-surgery/0.3','brain-surgery/0.4'}:
         raise ValueError('Unsupported schema_version')
@@ -278,7 +313,33 @@ def lift_section(s: dict[str, Any]) -> str:
             f'<div class="lift-row"><span>Model upgrade</span>{right}</div>'
             f'</div><p class="lift-note">{note} Points are held-out task pass rate.</p></section>')
 
-def report_html(s: dict[str, Any], raw: dict[str, Any] | None = None, public_source='') -> str:
+def model_matrix_section(raw: dict[str, Any] | None, s: dict[str, Any]) -> str:
+    grid = summarize_model_comparison(raw or {}, s['tasks']) if raw else None
+    if not grid:
+        return ''
+    current, comparison, total = grid['current_model'], grid['comparison_model'], grid['tasks']
+    setup_lift = current['tested_percent'] - current['current_percent']
+    model_alone = comparison['current_percent'] - current['current_percent']
+    model_after = comparison['tested_percent'] - current['tested_percent']
+    return f'''<section class="report-section" id="model-comparison"><div class="section-head"><div><p class="kicker">MODEL × SETUP</p><h2>Would a different model help?</h2></div><span class="sample-pill">Illustrative example</span></div><div class="model-grid"><div class="model-header">Same six tasks</div><div class="model-header">Current setup</div><div class="model-header blue">With surgery</div><div class="model-name"><strong>{html.escape(current['label'])}</strong><small>{html.escape(current['detail'])}</small></div><div class="model-score">{current['current_percent']}<small>% · {current['current_passed']}/{total}</small></div><div class="model-score tested">{current['tested_percent']}<small>% · {current['tested_passed']}/{total}</small></div><div class="model-name"><strong>{html.escape(comparison['label'])}</strong><small>{html.escape(comparison['detail'])}</small></div><div class="model-score">{comparison['current_percent']}<small>% · {comparison['current_passed']}/{total}</small></div><div class="model-score tested">{comparison['tested_percent']}<small>% · {comparison['tested_passed']}/{total}</small></div></div><div class="model-footer"><span>Setup change <b class="blue">{setup_lift:+d} points</b></span><span>Model change alone <b>{model_alone:+d} points</b></span><span>Model change after surgery <b>{model_after:+d} points</b></span></div><p class="note" style="margin-top:14px">In this fictional example, the setup change makes the bigger difference. One coding task still fails in every condition.</p></section>'''
+
+def example_work_section(raw: dict[str, Any] | None, strict: bool = False) -> str:
+    work = (raw or {}).get('example_work')
+    if not isinstance(work, dict) or work.get('illustrative') is not True:
+        return ''
+    pair = next((p for p in (raw or {}).get('pairs', [])
+                 if p.get('valid') is True and p.get('task_id') == work.get('task_id')), None)
+    if not pair or pair.get('before') is not False or pair.get('after') is not True:
+        if strict:
+            raise ValueError('example_work must reference an existing task that changed from fail to pass')
+        return ''
+    if work.get('before') != pair.get('output_before') or work.get('after') != pair.get('output_after'):
+        if strict:
+            raise ValueError('example_work must reuse the referenced task outputs exactly')
+        return ''
+    return f'''<section class="report-section" id="example-work"><div class="section-head"><div><p class="kicker">INSPECTED WORK · ILLUSTRATIVE</p><h2>Same request. Better work.</h2></div></div><div class="output-pair"><article class="output-panel"><div class="output-top"><span>CURRENT SETUP</span><span class="output-score">DID NOT PASS</span></div><div class="output-body"><div class="doc-kicker">{html.escape(work.get('label', 'Example output').upper())}</div><p>{html.escape(work.get('before', ''))}</p></div></article><article class="output-panel blue-frame"><div class="output-top"><span>WITH SURGERY</span><span class="output-score">PASSED</span></div><div class="output-body"><div class="doc-kicker">{html.escape(work.get('label', 'Example output').upper())}</div><p>{html.escape(work.get('after', ''))}</p></div></article></div><p class="note" style="margin-top:14px">{html.escape(work.get('finding', ''))}</p></section>'''
+
+def report_html(s: dict[str, Any], raw: dict[str, Any] | None = None, public_source='', complete_demo=False) -> str:
     """Render the measured comparison in the approved AGI Labs presentation.
 
     The approved prototype is presentation-only; this renderer deliberately
@@ -286,7 +347,8 @@ def report_html(s: dict[str, Any], raw: dict[str, Any] | None = None, public_sou
     its fixture data. Private task evidence and the proposed change plan are
     added only to the local report.
     """
-    local = raw is not None
+    local = raw is not None and not complete_demo
+    detailed = local or complete_demo
     demo = s['example']
     before = s['before_percent']
     after = s['after_percent']
@@ -354,7 +416,7 @@ def report_html(s: dict[str, Any], raw: dict[str, Any] | None = None, public_sou
     changes = ''
     test_evidence = ''
     change_rows = []
-    if local:
+    if detailed:
         evidence_rows = []
         for pair in raw.get('pairs', []):
             valid_pair = pair.get('valid') is True
@@ -382,27 +444,79 @@ def report_html(s: dict[str, Any], raw: dict[str, Any] | None = None, public_sou
                     load = lambda value: 'loaded' if value is True else ('not loaded' if value is False else 'unknown')
                     check_parts.append(f"skill: {load(before_loaded)} → {load(after_loaded)}")
                 evidence = '; '.join(check_parts) or evidence
+            title = html.escape(str(pair.get('title') or pair['task_id']))
+            if complete_demo:
+                labels = pair.get('acceptance_checks', [])
+                before_checks = pair.get('checks_before', [])
+                after_checks = pair.get('checks_after', [])
+                if not isinstance(labels, list) or not labels or len(before_checks) != len(labels) or len(after_checks) != len(labels):
+                    raise ValueError(f'{pair["task_id"]}: illustrative acceptance checks need aligned before/after outcomes')
+                if any(type(value) is not bool for value in before_checks + after_checks):
+                    raise ValueError(f'{pair["task_id"]}: illustrative check outcomes must be boolean')
+                checks = ''.join(
+                    f'<li><span>{html.escape(str(label))}</span><span class="mono">Current: {"Pass" if before_checks[i] else "Fail"} · Surgery: {"Pass" if after_checks[i] else "Fail"}</span></li>'
+                    for i, label in enumerate(labels)
+                )
+                four = [('Current model / current setup', pair.get('before')),
+                        ('Current model / surgery', pair.get('after')),
+                        ('Comparison model / current setup', pair.get('comparison_current')),
+                        ('Comparison model / surgery', pair.get('comparison_tested'))]
+                outcomes = ' · '.join(f'{label}: {"Pass" if value is True else "Fail"}' for label, value in four)
+                detail = (f'<details class="req-detail"><summary>{title}</summary><div class="inside">'
+                          f'<p><strong>Request</strong><br>{html.escape(str(pair.get("request", "")))}</p>'
+                          f'<p><strong>Acceptance checks</strong></p><ul>{checks}</ul>'
+                          f'<p><strong>Current output</strong><br>{html.escape(str(pair.get("output_before", "")))}</p>'
+                          f'<p><strong>With surgery</strong><br>{html.escape(str(pair.get("output_after", "")))}</p>'
+                          f'<p class="mono">{html.escape(outcomes)}</p></div></details>')
+            else:
+                detail = title
             evidence_rows.append(
-                f'<tr><td>{html.escape(str(pair.get("title") or pair["task_id"]))}</td>'
+                f'<tr><td>{detail}</td>'
                 f'<td>{html.escape(WORKFLOWS.get(pair.get("workflow"), "Other work"))}</td>'
                 f'<td>{current}</td><td>{tested}</td><td>{html.escape(evidence)}</td></tr>')
         table = (f'''<div class="table-scroll"><table class="data-table"><thead><tr><th>Task</th><th>Workflow</th><th>Current</th><th>Tested</th><th>Checks / invocation</th></tr></thead><tbody>{''.join(evidence_rows)}</tbody></table></div>'''
                  if evidence_rows else '<p class="note">No task pairs were recorded. There is nothing to score or apply.</p>')
-        test_evidence = f'''<section class="report-section" id="report-tests"><div class="section-head"><div><p class="kicker">TEST EVIDENCE · LOCAL ONLY</p><h2>The tasks behind the result.</h2></div></div>{table}<p class="note" style="margin-top:14px">{s['invalid_pairs']} invalid pair{'s' if s['invalid_pairs'] != 1 else ''} excluded. Task names, check outcomes, invocation evidence, and exclusion reasons stay local.</p></section>'''
+        evidence_label = 'TEST EVIDENCE · ILLUSTRATIVE' if complete_demo else 'TEST EVIDENCE · LOCAL ONLY'
+        evidence_note = ('Fictional tasks and outcomes shown to demonstrate the evidence experience.' if complete_demo else
+                         f'{s["invalid_pairs"]} invalid pair{"s" if s["invalid_pairs"] != 1 else ""} excluded. Task names, check outcomes, invocation evidence, and exclusion reasons stay local.')
+        test_evidence = f'''<section class="report-section" id="report-tests"><div class="section-head"><div><p class="kicker">{evidence_label}</p><h2>The tasks behind the result.</h2></div></div>{table}<p class="note" style="margin-top:14px">{evidence_note}</p></section>'''
         for i,c in enumerate(raw.get('plan',{}).get('changes',[]),1):
-            change_rows.append(f'''<article class="change-line"><span class="change-no">{i:02d}</span><div><div class="change-title">{html.escape(c.get('title','Proposed edit'))}</div></div><p class="change-why">{html.escape(c.get('description',''))}</p><details><summary class="text-link">View edit</summary><code class="change-path">{html.escape(c.get('patch_preview',''))}</code></details></article>''')
+            before_instruction = str(c.get('before_instruction', ''))
+            after_instruction = str(c.get('after_instruction', ''))
+            affected_tasks = c.get('affected_tasks', [])
+            if complete_demo and (not before_instruction or not after_instruction or not isinstance(affected_tasks, list) or not affected_tasks):
+                raise ValueError('illustrative changes need exact before/after instructions and affected tasks')
+            edit_detail = (f'<div class="edit-review"><p class="kicker">BEFORE</p><code>{html.escape(before_instruction)}</code>'
+                           f'<p class="kicker blue">AFTER</p><code>{html.escape(after_instruction)}</code>'
+                           f'<p><strong>Affected tasks:</strong> {html.escape(", ".join(map(str, affected_tasks)))}</p></div>'
+                           if before_instruction and after_instruction else
+                           f'<code class="change-path">{html.escape(c.get("patch_preview", ""))}</code>')
+            change_rows.append(f'''<article class="change-line"><span class="change-no">{i:02d}</span><div><div class="change-title">{html.escape(c.get('title','Proposed edit'))}</div></div><p class="change-why">{html.escape(c.get('description',''))}</p><details><summary class="text-link">View exact edit</summary>{edit_detail}</details></article>''')
         if change_rows:
-            changes=f'''<section class="report-section"><div class="section-head"><div><p class="kicker">THE SURGERY</p><h2>{len(change_rows)} edits. Same model.</h2></div></div><div class="change-list">{''.join(change_rows)}</div><p class="note" style="margin-top:14px;font-size:11px">Tested together. Provider instructions unchanged. Nothing applied.</p></section>'''
+            changes=f'''<section class="report-section" id="report-changes"><div class="section-head"><div><p class="kicker">THE SURGERY</p><h2>{len(change_rows)} targeted changes.</h2></div></div><div class="change-list">{''.join(change_rows)}</div><p class="note" style="margin-top:14px;font-size:11px">{'These are illustrative edits. ' if complete_demo else 'Tested together. Provider instructions unchanged. '}Nothing has been changed.</p></section>'''
     workflow_section = (f'''<section class="report-section"><div class="section-head"><div><p class="kicker">WORKFLOWS</p><h2>Where the difference came from.</h2></div></div><div class="workflow-head"><span>Workflow</span><span class="tasks-head">Tasks</span><span>Current</span><span>Tested</span><span class="right">Change</span><span></span></div>{''.join(workflow_rows)}<div class="workflow-end"><p>Changes shown in percentage points. Unchanged and worsened tasks are included.</p></div></section>'''
                         if s['state'] != 'insufficient' else
                         '<section class="report-section"><div class="section-head"><div><p class="kicker">WORKFLOWS</p><h2>Not scored yet.</h2></div></div><p class="note">Workflow percentages are withheld until at least two comparable task pairs are complete.</p></section>')
     method=f'''<section class="report-section" id="report-method"><div class="section-head"><div><p class="kicker">HOW WE TESTED</p><h2>Same task. Same model.<br>With and without the surgery.</h2></div></div><div class="method-figure"><div class="method-input">Your task + files</div><div class="method-fork"></div><div class="method-arms"><div class="method-arm"><div class="kicker">Without the surgery</div><strong>Current setup</strong><small>Existing skills and instructions</small></div><div class="method-arm tested"><div class="kicker blue">With the surgery</div><strong class="blue">Proposed setup</strong><small>With targeted edits</small></div></div><div class="method-join"></div><div class="method-check">Same success checklist</div><div class="mono blue" style="font-size:15px;margin-top:13px">{method_score}</div></div><p class="method-caption">Same task, inputs, model, and checks. Only the setup changes.</p><p class="method-caption">The tested setup has not been applied.</p></section>'''
-    nav=f'''<div class="wrap"><nav class="nav" aria-label="Main navigation"><a class="brand" href="https://github.com/agilabs-ai" rel="noreferrer" aria-label="AGI Labs home">{brand_mark}agi labs<span class="brand-divider"></span><span class="brand-product">Brain Surgery</span></a><div class="nav-links"><span class="location tiny">{'Private report' if local else 'Shared brain scan'}</span>{'<button class="text-link" data-action="export-report">Export report</button>' if local else ''}</div></nav></div>'''
-    if local:
-        primary_action = ('<button class="btn btn-dark" data-action="surgery">Review tested changes →</button>'
-                          if change_rows and s['state'] == 'improved'
-                          else '<a class="btn btn-dark" href="#report-method">Review the evidence →</a>')
-        body=f'''{nav}<main class="wrap animate-in"><div class="report-head"><div><h1>Your brain scan</h1><p class="tiny">{s['tasks']} selected tasks · {html.escape(s['model_family'])}{' · Illustrative design example' if demo else ''}</p></div><span class="status" data-application-status>{status}</span></div><section class="report-hero"><div class="cloud-layer" data-cloud="right" data-intensity="0.39" aria-hidden="true"></div><div class="foreground"><div class="kicker"><span class="dot"></span> YOUR BRAIN SCAN</div><h2>{html.escape(local_hero)}<br>{rate_copy}</h2><div class="hero-measure"><div><div class="report-numbers"><div><div class="report-number">{before_score}</div><div class="number-label">Current setup</div></div><div class="report-arrow">→</div><div><div class="report-number blue">{after_score}</div><div class="number-label">With surgery</div></div></div><p class="score-explainer">{html.escape(subline)}</p></div><div class="brain-wrap">{brain}</div></div><div class="hero-meta"><span>{delta_meta}</span><span><b>Same model</b> and inputs</span><span><b>{s['tasks']} tasks</b> compared</span></div></div></section>{paired}<div class="report-actions">{primary_action}<a class="btn btn-outline" href="#report-tests">View tests</a><button class="btn btn-outline" data-action="share">Export public preview</button><span class="note">Your live setup is unchanged.</span></div>{workflow_section}{test_evidence}{changes}{method}<section class="report-conclusion"><span class="conclusion-mark">+</span><h2>{conclusion_title}</h2><p>{conclusion_note}</p></section></main>'''
+    location = 'Example report' if complete_demo else ('Private report' if local else 'Shared summary')
+    nav_action = ('<a class="text-link" href="/#setup-prompt">Scan my AI →</a>' if complete_demo else
+                  ('<button class="text-link" data-action="export-report">Export report</button>' if local else ''))
+    nav=f'''<div class="wrap"><nav class="nav" aria-label="Main navigation"><a class="brand" href="/" aria-label="AGI Labs Brain Surgery home">{brand_mark}agi labs<span class="brand-divider"></span><span class="brand-product">Brain Surgery</span></a><div class="nav-links"><span class="location tiny">{location}</span>{nav_action}</div></nav></div>'''
+    if detailed:
+        if complete_demo:
+            primary_action = '<a class="btn btn-dark" href="#report-tests">View the tests</a><a class="btn btn-outline" href="#report-changes">Review the changes</a>'
+            report_title = 'An example brain scan'
+            report_meta = 'Six fictional tasks · Two model configurations · Nothing applied'
+            hero_copy = 'A better setup passed three more tasks.'
+        else:
+            primary_action = ('<button class="btn btn-dark" data-action="surgery">Review tested changes →</button>'
+                              if change_rows and s['state'] == 'improved'
+                              else '<a class="btn btn-dark" href="#report-method">Review the evidence →</a>')
+            primary_action += '<a class="btn btn-outline" href="#report-tests">View tests</a><button class="btn btn-outline" data-action="share">Export public preview</button>'
+            report_title = 'Your brain scan'
+            report_meta = f'{s["tasks"]} selected tasks · {html.escape(s["model_family"])}'
+            hero_copy = html.escape(local_hero)
+        body=f'''{nav}<main class="wrap animate-in"><div class="report-head"><div><h1>{report_title}</h1><p class="tiny">{report_meta}</p></div><span class="status" data-application-status>{'Illustrative example' if complete_demo else status}</span></div><section class="report-hero"><div class="cloud-layer" data-cloud="right" data-intensity="0.31" aria-hidden="true"></div><div class="foreground"><div class="kicker"><span class="dot"></span> {'ILLUSTRATIVE EXAMPLE' if complete_demo else 'YOUR BRAIN SCAN'}</div><h2>{hero_copy}<br>{rate_copy}</h2><div class="hero-measure"><div><div class="report-numbers"><div><div class="report-number">{before_score}</div><div class="number-label">Current setup</div></div><div class="report-arrow">→</div><div><div class="report-number blue">{after_score}</div><div class="number-label">With surgery</div></div></div><p class="score-explainer">{html.escape(subline)}</p></div><div class="brain-wrap">{brain}</div></div><div class="hero-meta"><span>{delta_meta}</span><span><b>Same model</b> and inputs</span><span><b>{s['tasks']} tasks</b> compared</span></div></div></section>{paired}<div class="report-actions">{primary_action}<span class="note">{'Fictional results; not a measurement.' if complete_demo else 'Your live setup is unchanged.'}</span></div>{workflow_section}{model_matrix_section(raw, s)}{example_work_section(raw, complete_demo)}{test_evidence}{changes}{method}<section class="report-conclusion"><span class="conclusion-mark">+</span><h2>{'Find out what your setup needs.' if complete_demo else conclusion_title}</h2><p>{'Start with a private, read-only scan. Changes and sharing always need your approval.' if complete_demo else conclusion_note}</p>{'<a class="btn btn-dark" href="/#setup-prompt">Scan my AI →</a>' if complete_demo else ''}</section><footer class="footer"><span>Brain Surgery, by AGI Labs.</span><div><a href="/">Home</a><a href="https://github.com/agilabs-ai/brain-surgery" target="_blank" rel="noreferrer">Source ↗</a></div></footer></main>'''
     else:
         body=f'''{nav}<main class="small-wrap animate-in"><section class="public-hero"><div class="cloud-layer" data-cloud="sides" data-intensity="0.52" aria-hidden="true"></div><div class="foreground"><div class="case-person" style="justify-content:center"><span class="avatar fd">AI</span><span class="kicker">A SHARED BRAIN SCAN</span></div><h1>{public_title}</h1><p class="public-sub">{public_sub}</p><div class="public-graphic"><div><div class="stat-big">{before_score}</div><div class="stat-label">Current</div></div><div>{brain}</div><div><div class="stat-big blue">{after_score}</div><div class="stat-label">With surgery</div></div></div><div class="public-meta">{s['tasks']} personal tasks · Same model · {s['workflow_count']} workflows<br>{s['improved_tasks']} improved · {s['unchanged_tasks']} unchanged · {s['regressed_tasks']} worsened · Tested, not applied</div>{'<div style="margin-top:14px"><span class="sample-pill">Illustrative design example</span></div>' if demo else ''}</div></section><section class="public-convert"><h2>What could your AI gain?</h2><p class="note">Run the same private, paired test on your own work.</p></section><section class="section"><div class="section-head"><div><p class="kicker">INSIDE THE RESULT</p><h2>Where the difference came from.</h2></div></div><div class="public-summary">{''.join(public_workflows)}</div><p class="note" style="margin-top:22px;font-size:11px">Unchanged and worsened tasks included. Prompts, outputs, skill names, paths, and edits stay private.</p></section>{method}<footer class="footer"><span>Brain Surgery, by AGI Labs.</span><div><a href="https://github.com/agilabs-ai/brain-surgery" target="_blank" rel="noreferrer">Source ↗</a></div></footer></main>'''
     css=(ASSETS/'approved-ui.css').read_text() + '''
@@ -425,9 +539,11 @@ def write_private(path: Path, text: str) -> None:
     os.chmod(path, 0o600)
 
 
-def render(raw: dict[str,Any], out: Path) -> dict[str,Any]:
+def render(raw: dict[str,Any], out: Path, complete_demo: bool = False) -> dict[str,Any]:
     out.mkdir(parents=True,exist_ok=True,mode=0o700); os.chmod(out,0o700); s=summarize(raw)
-    public=report_html(s)
+    if complete_demo and not s['example']:
+        raise ValueError('complete demo output requires example: true')
+    public=report_html(s, raw if complete_demo else None, complete_demo=complete_demo)
     write_private(out/'public-report.html', public)
     write_private(out/'local-report.html', report_html(s,raw,public))
     write_private(out/'social-card.svg', social_svg(s))
@@ -435,9 +551,9 @@ def render(raw: dict[str,Any], out: Path) -> dict[str,Any]:
     return s
 
 def main() -> None:
-    p=argparse.ArgumentParser(description=__doc__); p.add_argument('--input',required=True,type=Path); p.add_argument('--out',required=True,type=Path)
+    p=argparse.ArgumentParser(description=__doc__); p.add_argument('--input',required=True,type=Path); p.add_argument('--out',required=True,type=Path); p.add_argument('--complete-demo',action='store_true')
     a=p.parse_args()
-    try: raw=json.loads(a.input.read_text()); s=render(raw,a.out)
+    try: raw=json.loads(a.input.read_text()); s=render(raw,a.out,a.complete_demo)
     except (OSError,ValueError,TypeError,KeyError) as e: p.exit(2,f'Render failed: {e}\n')
     print(f'Created local/public HTML and social SVG. State: {s["state"]}. No upload or live setup changes.')
 if __name__=='__main__': main()

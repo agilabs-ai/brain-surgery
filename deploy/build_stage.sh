@@ -22,7 +22,7 @@ cp "$ROOT/assets/approved-cloud.js" "$STAGE/assets/approved-cloud.js"
 # Only the separately generated public example leaves this build. The private
 # local report remains inside the temporary render directory and is discarded.
 python3 "$ROOT/scripts/render_report.py" --input "$ROOT/examples/demo-result.json" \
-  --out "$REPORT_STAGE" >/dev/null
+  --out "$REPORT_STAGE" --complete-demo >/dev/null
 cp "$REPORT_STAGE/public-report.html" "$STAGE/report.html"
 cp "$REPORT_STAGE/public-summary.json" "$STAGE/report-summary.json"
 cp "$REPORT_STAGE/social-card.svg" "$STAGE/social-card.svg"

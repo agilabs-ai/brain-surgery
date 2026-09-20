@@ -18,7 +18,15 @@
       "valid": true,
       "before": false,
       "after": true,
-      "title": "Private customer update deck",
+      "title": "Customer update deck",
+      "request": "Turn the launch notes into a five-slide customer update with a decision slide and a clear next step.",
+      "acceptance_checks": ["Five slides", "Decision is explicit", "Next step has an owner"],
+      "checks_before": [false, false, false],
+      "checks_after": [true, true, true],
+      "output_before": "Slides: Overview; Progress; Milestones; Risks; Timeline; Team; Next steps. Rollout is being discussed.",
+      "output_after": "1 — Launch status. 2 — Milestones. 3 — Customer impact. 4 — Decision: Sara approves phased rollout Friday. 5 — Next step: Sara sends approval to the launch team.",
+      "comparison_current": true,
+      "comparison_tested": true,
       "local_reference": "/private/work/customer-deck/notes.md",
       "invocation": {
         "eligible": true,
@@ -32,7 +40,15 @@
       "valid": true,
       "before": false,
       "after": true,
-      "title": "Private product overview",
+      "title": "Product overview",
+      "request": "Create a concise product overview using the supplied visual hierarchy and positioning notes.",
+      "acceptance_checks": ["Uses supplied hierarchy", "States the product promise", "Ends with one action"],
+      "checks_before": [false, true, false],
+      "checks_after": [true, true, true],
+      "output_before": "Our platform helps teams work better with AI through powerful features and flexible workflows.",
+      "output_after": "Find what holds your AI back. Test a better setup on your own work. Review the evidence before changing anything. Start a private scan.",
+      "comparison_current": false,
+      "comparison_tested": true,
       "local_reference": "/private/work/product-overview/brief.md",
       "invocation": {
         "eligible": true,
@@ -46,7 +62,15 @@
       "valid": true,
       "before": true,
       "after": true,
-      "title": "Private launch message",
+      "title": "Launch message",
+      "request": "Draft a short launch message with the approved positioning and one call to action.",
+      "acceptance_checks": ["Uses approved positioning", "Contains one call to action", "Stays under 120 words"],
+      "checks_before": [true, true, true],
+      "checks_after": [true, true, true],
+      "output_before": "Your AI already has tools. Brain Surgery shows whether it reaches them, then tests a better setup on the same work. Start a private scan today.",
+      "output_after": "Brain Surgery finds where your AI setup fails, tests focused changes on the same work, and shows the evidence before anything changes. Start a private scan.",
+      "comparison_current": true,
+      "comparison_tested": true,
       "local_reference": "private-writing-skill-A",
       "invocation": {
         "eligible": true,
@@ -60,7 +84,15 @@
       "valid": true,
       "before": false,
       "after": true,
-      "title": "Private partner reply",
+      "title": "Partner reply",
+      "request": "Reply in under 70 words, say what is needed and by when, and do not promise a launch date.",
+      "acceptance_checks": ["Under 70 words", "Names the requested assets", "States Friday", "No delivery promise"],
+      "checks_before": [true, true, true, false],
+      "checks_after": [true, true, true, true],
+      "output_before": "Hi Lena, Thanks for your thoughtful reply. We need your logo and a short quote by Friday. We will launch everything on Monday. Let us know whenever convenient and we will coordinate next steps.",
+      "output_after": "Hi Lena, We just need your logo and a two-sentence quote. Could you send them by Friday? No extra preparation needed on your side. Thanks for being part of this.",
+      "comparison_current": false,
+      "comparison_tested": true,
       "local_reference": "/private/work/partner-reply/notes.md",
       "invocation": {
         "eligible": true,
@@ -74,7 +106,15 @@
       "valid": true,
       "before": true,
       "after": true,
-      "title": "Private feature implementation",
+      "title": "Feature implementation",
+      "request": "Implement the bounded feature and preserve the existing API contract.",
+      "acceptance_checks": ["Feature behavior passes", "Existing API is unchanged", "Targeted tests pass"],
+      "checks_before": [true, true, true],
+      "checks_after": [true, true, true],
+      "output_before": "Implemented the bounded option behind the existing method signature. Targeted tests: 8 passed. Public API unchanged.",
+      "output_after": "Implemented the bounded option behind the existing method signature. Targeted tests: 8 passed. Public API unchanged.",
+      "comparison_current": true,
+      "comparison_tested": true,
       "local_reference": "/private/work/feature/acceptance.md",
       "invocation": {
         "eligible": false,
@@ -88,7 +128,15 @@
       "valid": true,
       "before": false,
       "after": false,
-      "title": "Private regression repair",
+      "title": "Regression repair",
+      "request": "Repair the reproduced regression without changing unrelated behavior.",
+      "acceptance_checks": ["Reproduction passes", "No unrelated behavior changes", "Regression test added"],
+      "checks_before": [false, true, false],
+      "checks_after": [false, true, false],
+      "output_before": "Unable to reproduce a passing fix. Existing behavior left unchanged. No regression test added.",
+      "output_after": "The setup change did not resolve the failure. Existing behavior left unchanged. No regression test added.",
+      "comparison_current": false,
+      "comparison_tested": false,
       "local_reference": "/private/work/bug/reproduction.md",
       "invocation": {
         "eligible": false,
@@ -97,6 +145,26 @@
       }
     }
   ],
+  "model_comparison": {
+    "illustrative": true,
+    "tasks": 6,
+    "current_model": {
+      "label": "Current model",
+      "detail": "Illustrative configuration"
+    },
+    "comparison_model": {
+      "label": "Comparison model",
+      "detail": "Illustrative configuration"
+    }
+  },
+  "example_work": {
+    "illustrative": true,
+    "task_id": "t04",
+    "label": "Partner reply",
+    "before": "Hi Lena, Thanks for your thoughtful reply. We need your logo and a short quote by Friday. We will launch everything on Monday. Let us know whenever convenient and we will coordinate next steps.",
+    "after": "Hi Lena, We just need your logo and a two-sentence quote. Could you send them by Friday? No extra preparation needed on your side. Thanks for being part of this.",
+    "finding": "The tested output stays under the limit, answers both questions, and removes the unsupported delivery promise."
+  },
   "plan": {
     "status": "draft_not_applied",
     "candidate_bundle": "illustrative-bundle-02",
@@ -105,12 +173,18 @@
       {
         "title": "Make presentation-skill routing explicit.",
         "description": "Illustrative proposal. Add one scoped activation rule rather than a new router.",
-        "patch_preview": "For creating or redesigning a PowerPoint, load the selected presentation skill before drafting. Do not load it for a plain-text outline."
+        "before_instruction": "Use project skills when helpful.",
+        "after_instruction": "For creating or redesigning a presentation, load the presentation skill before drafting. Do not load it for a plain-text outline.",
+        "affected_tasks": ["Customer update deck", "Product overview"],
+        "patch_preview": "For creating or redesigning a presentation, load the presentation skill before drafting. Do not load it for a plain-text outline."
       },
       {
-        "title": "Archive the conflicting writing instruction.",
-        "description": "Keep the selected writing method. Archive the redundant conflicting instruction rather than permanently deleting it.",
-        "patch_preview": "Archive the candidate-marked duplicate instruction. Preserve a restorable original and verify the configuration has not changed."
+        "title": "Replace the conflicting writing instruction.",
+        "description": "Replace the redundant introduction rule with the scoped instruction that passed the writing task.",
+        "before_instruction": "Always begin with a detailed introduction and explain the full context.",
+        "after_instruction": "Honor the requested length. Answer the recipient’s questions first. Add background only when the request requires it.",
+        "affected_tasks": ["Partner reply"],
+        "patch_preview": "Replace the conflicting introduction rule with the scoped length-and-questions instruction."
       }
     ],
     "apply_requires": "explicit approval, original-hash check, exact diff, rollback backup",
